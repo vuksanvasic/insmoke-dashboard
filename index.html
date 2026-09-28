@@ -1,0 +1,1494 @@
+<!doctype html>
+<html lang="sr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>In Smoke We Trust Sales</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@400;500;600;700&family=Rubik+Wet+Paint&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="auth.js"></script>
+<style>
+/* Layout: smoke-black owner console — brand wordmark + period bar, module tabs (Pregled → Sales → Food Cost → Waste → Labor → Marža → Profit), each module = KPI strip, inputs, then evidence */
+:root{
+  --bg:#0c0a0b; --panel:#161314; --panel-2:#1e1a1b; --line:#2d2728; --fg:#f5f2f3; --muted:#9d9396;
+  --pink:#f172a5; --red:#e0101f; --pos:#6fe3c4; --neg:#ff6b6b; --warn:#ffc244; --dead:#3a3234;
+  --c1:#f172a5; --c2:#ff9f5a; --c3:#b9a3ff; --c4:#4fc3f7; --c5:#ffc244; --c6:#6fe3c4; --c7:#9d9396;
+  --display:"Bebas Neue",Impact,"Arial Narrow",sans-serif;
+  --drip:"Rubik Wet Paint","Bebas Neue",Impact,sans-serif;
+  --body:Montserrat,"Segoe UI",Helvetica,Arial,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme: light){ :root:not([data-theme="dark"]){
+  --bg:#f7f4f5; --panel:#ffffff; --panel-2:#f1ecee; --line:#e2dadd; --fg:#161213; --muted:#6c6164;
+  --pink:#c8306f; --red:#b8000c; --pos:#0f8a6a; --neg:#c62d2d; --warn:#a86e00; --dead:#e2dadd;
+  --c1:#d6437f; --c2:#d9691c; --c3:#6f55d9; --c4:#0f86c2; --c5:#b98300; --c6:#0f8a6a; --c7:#8a7f82;
+  color-scheme:light; } }
+:root[data-theme="light"]{
+  --bg:#f7f4f5; --panel:#ffffff; --panel-2:#f1ecee; --line:#e2dadd; --fg:#161213; --muted:#6c6164;
+  --pink:#c8306f; --red:#b8000c; --pos:#0f8a6a; --neg:#c62d2d; --warn:#a86e00; --dead:#e2dadd;
+  --c1:#d6437f; --c2:#d9691c; --c3:#6f55d9; --c4:#0f86c2; --c5:#b98300; --c6:#0f8a6a; --c7:#8a7f82;
+  color-scheme:light; }
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:14px;line-height:1.5;margin:0}
+.wrap{max-width:1180px;margin:0 auto;padding-inline:clamp(16px,3vw,32px);padding-block:20px 60px;display:grid;gap:22px}
+.view{display:grid;gap:22px}
+h1,h2,h3{font-family:var(--display);font-weight:400;letter-spacing:.02em;margin:0;text-wrap:balance}
+h2{font-size:30px;line-height:1}
+h3{font-size:21px;line-height:1.1}
+.muted{color:var(--muted)}
+.lbl{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;color:var(--muted)}
+.fx{font-family:var(--mono);font-size:11.5px;color:var(--muted)}
+.fx b{color:var(--pink);font-weight:500}
+p{margin:0}
+
+/* header */
+header.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:18px;border-bottom:1px solid var(--line);padding-bottom:18px}
+.brand{display:flex;align-items:center;gap:16px}
+.mark{font-family:var(--display);font-size:40px;line-height:.82;letter-spacing:.01em}
+.mark .smoke{font-family:var(--drip);color:var(--pink);font-size:43px;display:block;letter-spacing:.02em}
+.mark .l1,.mark .l3{display:block}
+.brand-meta{display:grid;gap:4px;border-left:1px solid var(--line);padding-left:16px}
+.brand-meta .est{font-family:var(--display);color:var(--red);font-size:18px;letter-spacing:.08em}
+.brand-meta .t{font-family:var(--display);font-size:26px;line-height:1}
+.period{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+.field{display:grid;gap:4px}
+input.in,select.in{background:var(--panel-2);border:1px solid var(--line);color:var(--fg);border-radius:6px;padding:8px 10px;font:500 14px var(--body);font-variant-numeric:tabular-nums;min-width:0}
+input.in:focus,select.in:focus{outline:2px solid var(--pink);outline-offset:1px;border-color:transparent}
+input.in.r{text-align:right}
+input.in:disabled{opacity:.7;border-style:dashed}
+.w-per{width:160px}.w-sm{width:84px}
+td input.in{width:110px}
+td input.in.t{width:100%;min-width:150px}
+td select.in{min-width:150px}
+
+/* tabs */
+nav.tabs{display:flex;gap:4px;flex-wrap:wrap;position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-block:8px;border-bottom:1px solid var(--line)}
+nav.tabs button{font-family:var(--display);font-size:19px;letter-spacing:.05em;background:none;border:0;color:var(--muted);padding:6px 12px 4px;cursor:pointer;border-radius:6px}
+nav.tabs button:hover{color:var(--fg)}
+nav.tabs button[aria-selected="true"]{color:var(--bg);background:var(--pink)}
+nav.tabs button:focus-visible{outline:2px solid var(--pink);outline-offset:2px}
+nav.tabs .n{font-family:var(--mono);font-size:10px;opacity:.7;margin-right:4px;vertical-align:2px}
+.btn{font:600 12px var(--body);letter-spacing:.06em;text-transform:uppercase;background:var(--panel-2);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:8px 12px;cursor:pointer}
+.btn:hover{border-color:var(--pink)}
+.btn:focus-visible{outline:2px solid var(--pink);outline-offset:2px}
+.btn.warn{border-color:var(--neg);color:var(--neg)}
+.btn.sm{padding:5px 9px;font-size:11px}
+.x{background:none;border:0;color:var(--muted);cursor:pointer;font-size:18px;line-height:1;padding:4px 8px;border-radius:4px}
+.x:hover{color:var(--neg)}
+
+.sample{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;background:var(--panel-2);border:1px dashed var(--pink);border-radius:8px;padding:10px 14px;font-size:13px}
+.sample b{color:var(--pink)}
+
+/* KPI strip */
+.kpis{display:grid;grid-template-columns:repeat(var(--n,7),minmax(0,1fr));border:1px solid var(--line);border-radius:10px;background:var(--panel);overflow:hidden}
+.kpi{padding:14px 14px 12px;display:grid;gap:6px;align-content:start;min-width:0;box-shadow:1px 0 0 var(--line),0 1px 0 var(--line)}
+.kpi .v{font-family:var(--display);font-size:32px;line-height:1;letter-spacing:.01em;font-variant-numeric:tabular-nums;white-space:nowrap}
+.kpi .v small{font-size:15px;color:var(--muted);margin-left:3px}
+.kpi .s{font-size:11.5px;color:var(--muted)}
+.kpi.hero{background:var(--panel-2)}
+.kpi.hero .v{color:var(--pink);font-size:36px}
+@media (max-width:1020px){.kpis{grid-template-columns:repeat(min(var(--n,7),4),minmax(0,1fr))}}
+@media (max-width:560px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.kpi .v{font-size:27px}.kpi.hero .v{font-size:30px}}
+.pill{display:inline-flex;align-items:center;gap:4px;font:700 11px var(--body);padding:2px 8px;border-radius:99px;font-variant-numeric:tabular-nums;width:max-content;white-space:nowrap}
+.pill.pos{color:var(--pos);background:color-mix(in srgb,var(--pos) 14%,transparent)}
+.pill.neg{color:var(--neg);background:color-mix(in srgb,var(--neg) 14%,transparent)}
+.pill.warn{color:var(--warn);background:color-mix(in srgb,var(--warn) 14%,transparent)}
+.pill.flat{color:var(--muted);background:var(--panel-2)}
+.vpos{color:var(--pos)}.vneg{color:var(--neg)}.vwarn{color:var(--warn)}
+
+/* sections */
+section.mod{display:grid;gap:14px}
+.mod-h{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:8px 16px}
+.mod-h .n{font-family:var(--mono);font-size:11px;color:var(--red);letter-spacing:.08em;margin-right:8px}
+.q{font-size:15px;max-width:72ch;color:var(--muted)}
+.q b{color:var(--fg)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;min-width:0;display:grid;gap:12px;align-content:start}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.span2{grid-column:span 2}
+@media (max-width:820px){.grid2,.grid3{grid-template-columns:1fr}.span2{grid-column:auto}}
+
+/* tables */
+.tw{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--panel)}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+th,td{padding:9px 12px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--line)}
+th{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700;background:var(--panel-2)}
+th:first-child,td:first-child{text-align:left}
+tbody tr:hover td{background:color-mix(in srgb,var(--pink) 5%,transparent)}
+tfoot td{font-weight:700;border-bottom:0;background:var(--panel-2)}
+tfoot td:first-child{font-family:var(--display);font-size:18px;letter-spacing:.06em;font-weight:400}
+.ch{display:inline-flex;align-items:center;gap:8px;font-weight:600}
+.dot{width:10px;height:10px;border-radius:3px;flex:none;display:inline-block}
+.bar-cell{display:flex;align-items:center;gap:8px;justify-content:flex-end}
+.minibar{width:60px;height:6px;border-radius:3px;background:var(--panel-2);overflow:hidden}
+.minibar i{display:block;height:100%}
+td.item{white-space:normal;min-width:180px;text-align:left}
+td.item small{display:block;color:var(--muted);font-size:11.5px}
+td.l,th.l{text-align:left}
+
+/* mix bars */
+.mixrow{display:grid;grid-template-columns:110px 1fr;gap:10px;align-items:center}
+.stack{display:flex;height:30px;border-radius:6px;overflow:hidden;background:var(--panel-2)}
+.stack span{display:flex;align-items:center;justify-content:center;font:700 11px var(--body);color:#0c0a0b;min-width:0;overflow:hidden;white-space:nowrap}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.insight{font-size:13px;border-left:3px solid var(--pink);padding:6px 0 6px 12px;max-width:72ch}
+.insight b{color:var(--fg)}
+
+/* stat list */
+.stats{display:grid}
+.stat{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:10px 0;border-bottom:1px dashed var(--line)}
+.stat:last-child{border-bottom:0}
+.stat .v{font-family:var(--display);font-size:26px;line-height:1;font-variant-numeric:tabular-nums;white-space:nowrap}
+.stat .k{display:grid;gap:2px}
+
+/* hourly charts */
+.hours{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:6px;align-items:end;height:200px;padding-top:22px;border-bottom:1px solid var(--line);position:relative}
+.hcol{display:flex;flex-direction:column;justify-content:flex-end;height:100%;position:relative;min-width:0}
+.hbar{background:var(--muted);border-radius:4px 4px 0 0;opacity:.55;min-height:2px;position:relative}
+.hbar.peak{background:var(--pink);opacity:1}
+.hbar.dead{background:repeating-linear-gradient(135deg,var(--dead) 0 4px,transparent 4px 8px);border:1px solid var(--dead);opacity:1}
+.hbar.low{background:var(--neg);opacity:.85}
+.hval{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);font:600 10px var(--body);color:var(--muted);white-space:nowrap;padding-bottom:3px}
+.hbar.peak .hval{color:var(--pink)}.hbar.low .hval{color:var(--neg)}
+.avgline{position:absolute;left:0;right:0;border-top:1px dashed var(--fg);opacity:.5;pointer-events:none}
+.avgline span{position:absolute;right:0;top:-16px;font:600 10px var(--body);background:var(--panel);padding:0 4px}
+.hlabels{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:6px;font:500 10px var(--mono);color:var(--muted);text-align:center}
+@media (max-width:560px){.hval{display:none}.hlabels span:nth-child(even){visibility:hidden}}
+
+/* bar rows */
+.cat{display:grid;gap:10px}
+.catrow{display:grid;grid-template-columns:130px 1fr 110px;gap:10px;align-items:center}
+.track{height:12px;border-radius:6px;background:var(--panel-2);overflow:hidden;position:relative}
+.track i{display:block;height:100%;border-radius:6px}
+.catrow .r{text-align:right;font-variant-numeric:tabular-nums;font-size:13px}
+.sub{padding-left:16px;font-size:12.5px}
+.sub .track{height:7px}
+@media (max-width:560px){.catrow{grid-template-columns:96px 1fr 84px}}
+
+/* waterfall */
+.wf{display:grid;gap:8px}
+.wfrow{display:grid;grid-template-columns:150px 1fr 120px;gap:10px;align-items:center}
+.wftrack{height:24px;position:relative;background:var(--panel-2);border-radius:4px}
+.wftrack i{position:absolute;top:0;bottom:0;border-radius:4px}
+.wfrow .r{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+.wfrow.total{border-top:1px solid var(--line);padding-top:8px}
+@media (max-width:560px){.wfrow{grid-template-columns:100px 1fr 86px;font-size:12.5px}}
+
+/* channel CM bars */
+.cmrow{display:grid;grid-template-columns:96px 1fr 120px;gap:10px;align-items:center}
+.cmtrack{display:grid;gap:3px}
+.cmtrack .a,.cmtrack .b{height:10px;border-radius:3px}
+.cmtrack .a{background:var(--dead)}
+@media (max-width:560px){.cmrow{grid-template-columns:76px 1fr 90px}}
+
+/* overview */
+.pace{display:grid;grid-template-columns:1.2fr 1fr;gap:14px}
+@media (max-width:820px){.pace{grid-template-columns:1fr}}
+.pace .big{font-family:var(--display);font-size:64px;line-height:.9;font-variant-numeric:tabular-nums}
+.pacebar{height:18px;border-radius:9px;background:var(--panel-2);position:relative;overflow:visible}
+.pacebar i{display:block;height:100%;border-radius:9px}
+.pacebar .bepmark{position:absolute;top:-6px;bottom:-6px;width:2px;background:var(--fg)}
+.pacebar .bepmark span{position:absolute;top:-20px;left:50%;transform:translateX(-50%);font:700 10px var(--body);white-space:nowrap;letter-spacing:.08em;text-transform:uppercase}
+.chain{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}
+.chain button{all:unset;cursor:pointer;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;display:grid;gap:6px;align-content:start;min-width:0;position:relative}
+.chain button:hover{border-color:var(--pink)}
+.chain button:focus-visible{outline:2px solid var(--pink);outline-offset:2px}
+.chain .step{font:500 10.5px var(--mono);color:var(--red);letter-spacing:.08em}
+.chain .v{font-family:var(--display);font-size:30px;line-height:1;font-variant-numeric:tabular-nums}
+.chain .qq{font-size:12px;color:var(--muted)}
+.chain .stripe{position:absolute;left:0;top:10px;bottom:10px;width:3px;border-radius:0 3px 3px 0}
+@media (max-width:1020px){.chain{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:560px){.chain{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+details.grp{border:1px solid var(--line);border-radius:10px;background:var(--panel);overflow:hidden}
+details.grp summary{cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 16px;list-style:none;background:var(--panel-2)}
+details.grp summary::-webkit-details-marker{display:none}
+details.grp summary h3::before{content:"+ ";color:var(--pink)}
+details.grp[open] summary h3::before{content:"– "}
+details.grp .tw{border:0;border-radius:0}
+details.grp .inner{padding:14px 16px;display:grid;gap:12px}
+.note{font-size:12.5px;color:var(--muted);max-width:80ch}
+.warnline{color:var(--neg);font-weight:600}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+.toggle{display:inline-flex;align-items:center;gap:8px;font-size:13px;cursor:pointer}
+.toggle input{accent-color:var(--pink);width:16px;height:16px}
+
+/* formulas */
+.fgroup{display:grid;gap:12px}
+ol.formulas{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+ol.formulas li{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:grid;gap:6px;min-width:0}
+ol.formulas li h3 .n{font-family:var(--mono);font-size:12px;color:var(--red);margin-right:8px}
+ol.formulas .eq{font-family:var(--mono);font-size:12.5px;background:var(--panel-2);padding:8px 10px;border-radius:6px;overflow-x:auto}
+ol.formulas .live{font-size:13px}
+ol.formulas .live b{color:var(--pink)}
+@media (max-width:820px){ol.formulas{grid-template-columns:1fr}}
+
+.savestat{margin-left:auto;align-self:center;font:600 11px var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border:1px solid var(--line);border-radius:99px;white-space:nowrap}
+.savestat i{width:8px;height:8px;border-radius:50%;background:var(--muted);display:inline-block}
+.savestat.ok i{background:var(--pos)}.savestat.busy i{background:var(--warn)}.savestat.bad i{background:var(--neg)}.savestat.bad{color:var(--neg)}
+.archrow{display:grid;grid-template-columns:120px 1fr 130px;gap:10px;align-items:center}
+.archrow .r{text-align:right;font-variant-numeric:tabular-nums;font-size:13px}
+.archtrack{height:18px;border-radius:4px;background:var(--panel-2);position:relative}
+.archtrack i{position:absolute;left:0;top:0;bottom:0;border-radius:4px}
+.archtrack b{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--fg)}
+tr.cur td{background:color-mix(in srgb,var(--pink) 8%,transparent)}
+@media (max-width:560px){.archrow{grid-template-columns:84px 1fr 96px}}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:8px 14px;border-radius:8px;font-weight:600;font-size:13px;z-index:10}
+footer{font-size:12px;color:var(--muted);border-top:1px solid var(--line);padding-top:14px;display:flex;flex-wrap:wrap;gap:8px 20px;justify-content:space-between}
+@media (prefers-reduced-motion:no-preference){.hbar,.track i,.minibar i,.stack span,.pacebar i,.wftrack i{transition:height .35s ease,width .35s ease,left .35s ease}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <div class="mark" aria-label="In Smoke We Trust"><span class="l1">IN</span><span class="smoke">SMOKE</span><span class="l3">WE TRUST</span></div>
+      <div class="brand-meta">
+        <span class="est">— EST. 2019 — TEXAS BBQ</span>
+        <span class="t">Finansijski sistem</span>
+        <span class="lbl">Sales · Food Cost · Waste · Labor · Marža · Profit</span>
+      </div>
+    </div>
+    <div class="period">
+      <label class="field"><span class="lbl">Mesec</span><select class="in" id="mSel"></select></label>
+      <label class="field"><span class="lbl">Godina</span><select class="in" id="ySel"></select></label>
+      <div class="field"><span class="lbl">Poredi se sa</span><span id="prevLbl" style="padding-block:8px;font-weight:600"></span></div>
+      <label class="field"><span class="lbl">Radnih dana</span><input class="in r w-sm" id="days" inputmode="decimal" type="text"></label>
+      <label class="field"><span class="lbl">Sati rada / dan</span><input class="in r w-sm" id="hpd" inputmode="decimal" type="text"></label>
+    </div>
+  </header>
+
+  <nav class="tabs" role="tablist" aria-label="Moduli">
+    <button role="tab" id="tab-pregled" data-view="pregled">Pregled</button>
+    <button role="tab" id="tab-sales" data-view="sales"><span class="n">1</span>Sales</button>
+    <button role="tab" id="tab-food" data-view="food"><span class="n">2</span>Food Cost</button>
+    <button role="tab" id="tab-waste" data-view="waste"><span class="n">3</span>Waste &amp; lager</button>
+    <button role="tab" id="tab-labor" data-view="labor"><span class="n">4</span>Labor</button>
+    <button role="tab" id="tab-margin" data-view="margin"><span class="n">5</span>Marža</button>
+    <button role="tab" id="tab-profit" data-view="profit"><span class="n">6</span>Profit</button>
+    <button role="tab" id="tab-unos" data-view="unos">Unos prodaje</button>
+    <button role="tab" id="tab-arhiva" data-view="arhiva">Arhiva</button>
+    <button role="tab" id="tab-formule" data-view="formule">Formule</button>
+    <span class="savestat" id="saveStat" role="status"><i></i><span>Povezujem…</span></span>
+  </nav>
+
+  <div class="sample" id="sampleBar">
+    <span><b>Primer podataka.</b> Brojevi su izmišljeni da pokažu kako alat radi i ne čuvaju se. Kad kreneš sa pravim brojevima, klikni „Počni svoj unos“.</span>
+    <span class="row"><button class="btn" id="startOwn" type="button">Počni svoj unos</button></span>
+  </div>
+
+  <!-- ===================== PREGLED ===================== -->
+  <div id="view-pregled" class="view">
+    <section class="mod">
+      <div class="mod-h"><h2><span class="n">36</span>Break-even danas</h2><span class="fx">Daily Break-Even = <b>Monthly Break-Even ÷ radni dani</b></span></div>
+      <div class="pace">
+        <div class="panel">
+          <div class="row" style="justify-content:space-between">
+            <label class="field"><span class="lbl">Današnja prodaja (RSD)</span><input class="in r" id="today" inputmode="numeric" type="text" style="width:180px"></label>
+            <div style="text-align:right"><span class="lbl">Break-even tempo</span><div class="big" id="dbep" style="font-size:40px">—</div></div>
+          </div>
+          <div><span class="lbl">Razlika</span><div class="big" id="todayDiff">—</div></div>
+          <div class="pacebar" id="todayBar"></div>
+          <p class="note" id="todayNote"></p>
+        </div>
+        <div class="panel">
+          <h3>Tempo za <span id="perName"></span></h3>
+          <div class="stats" id="monthPace"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="mod">
+      <div class="mod-h"><h2>Šest pitanja</h2><span class="note">Klikni na karticu za ceo modul. Boje su orijentacione granice za casual BBQ restoran.</span></div>
+      <div class="chain" id="chain"></div>
+    </section>
+
+    <section class="mod">
+      <div class="mod-h"><h2><span class="n">33</span>Gde ode 100 dinara prometa</h2><span class="fx">Operating Profit = <b>Revenue − COGS − Labor − Other OpEx</b></span></div>
+      <div class="panel"><div class="wf" id="wfPregled"></div><p class="insight" id="wfInsight"></p></div>
+    </section>
+  </div>
+
+  <!-- ===================== 1 SALES ===================== -->
+  <div id="view-sales" class="view" hidden>
+    <p class="q"><b>Koliko i gde prodajemo?</b> Koliko prodaje, odakle dolazi i koliko vredi prosečna porudžbina.</p>
+    <div class="kpis" id="kpis" style="--n:7"></div>
+
+    <section class="mod">
+      <div class="mod-h"><h2><span class="n">01–06 · 11</span>Prodaja po kanalima</h2><span class="row"><span class="fx">Sales Mix % = <b>Revenue kanala ÷ Total Revenue × 100</b></span><button class="btn sm" id="copyBtn" type="button">Kopiraj tabelu</button></span></div>
+      <div class="tw"><table id="chTable"></table></div>
+    </section>
+
+    <section class="mod">
+      <div class="grid2">
+        <div class="panel">
+          <div class="mod-h"><h3>Sales Mix vs Order Mix</h3><span class="lbl">03 · 06</span></div>
+          <div class="mixrow"><span class="lbl">Prihod</span><div class="stack" id="stackRev"></div></div>
+          <div class="mixrow"><span class="lbl">Porudžbine</span><div class="stack" id="stackOrd"></div></div>
+          <div class="legend" id="legend"></div>
+          <p class="insight" id="mixInsight"></p>
+        </div>
+        <div class="panel">
+          <div class="mod-h"><h3>In-House: gost vs račun</h3><span class="lbl">07 · 08</span></div>
+          <div class="stats" id="guestStats"></div>
+          <p class="insight" id="guestInsight"></p>
+        </div>
+      </div>
+    </section>
+
+    <section class="mod">
+      <div class="mod-h"><h2><span class="n">09 · 10 · 12</span>Operativa po kanalu</h2><span class="fx">Items per Order = <b>artikli ÷ porudžbine</b> · Daily = <b>Revenue ÷ radni dani</b></span></div>
+      <div class="tw"><table id="opsTable"></table></div>
+    </section>
+
+    <section class="mod">
+      <div class="mod-h"><h2><span class="n">13 · 14</span>Prodaja kroz dan</h2><span class="fx">Sales per Hour = <b>Revenue ÷ sati rada</b></span></div>
+      <div class="grid3">
+        <div class="panel span2">
+          <div class="mod-h"><h3>Prosečna prodaja po satu (RSD / dan)</h3><span class="legend"><span><i class="dot" style="background:var(--pink)"></i>Peak</span><span><i class="dot" style="background:var(--dead)"></i>Dead</span></span></div>
+          <div><div class="hours" id="hours"></div><div class="hlabels" id="hlabels" style="margin-top:6px"></div></div>
+          <p class="note" id="hourNote"></p>
+        </div>
+        <div class="panel">
+          <div class="mod-h"><h3>Dnevni delovi</h3><span class="lbl">11:00–23:00</span></div>
+          <div class="cat" id="dayparts"></div>
+          <div class="stats" id="hourStats"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="mod">
+      <div class="mod-h"><h2><span class="n">15</span>Prodaja po kategoriji</h2><span class="fx">Category Mix % = <b>Category Revenue ÷ Total Revenue × 100</b></span></div>
+      <div class="panel"><div class="cat" id="cats"></div><p class="note" id="catNote"></p></div>
+    </section>
+
+    <section class="mod">
+      <div class="mod-h"><h2><span class="n">16</span>Prodaja po artiklu</h2>
+        <div class="seg row" role="group" aria-label="Sortiraj"><button class="btn sm" type="button" id="sortRev" aria-pressed="true">Po prihodu</button><button class="btn sm" type="button" id="sortQty" aria-pressed="false">Po količini</button><button class="btn sm" type="button" id="showAll" aria-pressed="false">Svi artikli</button></div>
+      </div>
+      <div class="tw"><table id="itemTable"></table></div>
+    </section>
+  </div>
+
+  <!-- ===================== 2 FOOD COST ===================== -->
+  <div id="view-food" class="view" hidden>
+    <p class="q"><b>Koliko je hrana trebalo da me košta i koliko me je stvarno koštala?</b> Recepture × prodate količine daju teorijski trošak. Lager i nabavka daju stvarni. Razlika je novac koji treba pronaći.</p>
+    <div class="kpis" id="foodKpis" style="--n:6"></div>
+
+    <section class="mod">
+      <div class="grid2">
+        <div class="panel">
+          <div class="mod-h"><h3>Teorijski vs stvarni COGS</h3><span class="lbl">19 · 21 · 23</span></div>
+          <div class="wf" id="varBars"></div>
+          <p class="insight" id="varInsight"></p>
+        </div>
+        <div class="panel">
+          <div class="mod-h"><h3>Stvarni COGS iz lagera</h3><span class="fx">Opening + Purchases − Closing</span></div>
+          <div class="tw"><table id="invInput"></table></div>
+          <div class="row"><label class="field"><span class="lbl">Food revenue — ručni unos (opciono)</span><input class="in r" id="f-foodRevOverride" data-path="foodRevOverride" inputmode="numeric" type="text" style="width:180px" placeholder="automatski"></label></div>
+          <p class="note" id="foodRevNote"></p>
+        </div>
+      </div>
+    </section>
+
+    <section class="mod">
+      <div class="mod-h"><h2><span class="n">17 · 18</span>Receptura</h2><span class="fx">Ingredient Cost = <b>Quantity Used × Price per Unit</b> · Recipe Cost = <b>Σ sastojaka</b></span></div>
+      <div class="panel">
+        <div class="row" style="justify-content:space-between">
+          <label class="field"><span class="lbl">Jelo</span><select class="in" id="recipeSel"></select></label>
+          <div style="text-align:right"><span class="lbl">Recipe cost / Food cost %</span><div class="big" style="font-family:var(--display);font-size:36px;line-height:1" id="recipeTotal">—</div></div>
+        </div>
+        <div class="tw"><table id="recipeTable"></table></div>
+        <div class="row"><button class="btn sm" type="button" id="addLine">+ Dodaj sastojak</button><span class="note">Količinu unosi kao sirovu težinu (npr. 0,44 kg brisketa za 220 g gotovog mesa). Kad jelo ima recepturu, njen zbir se koristi kao Recipe Cost.</span></div>
+      </div>
+    </section>
+
+    <section class="mod">
+      <div class="mod-h"><h2><span class="n">19</span>Recipe cost po artiklu</h2><span class="fx">Theoretical COGS = <b>Σ (Quantity Sold × Recipe Cost)</b></span></div>
+      <div id="rcInput" style="display:grid;gap:10px"></div>
+    </section>
+  </div>
+
+  <!-- ===================== 3 WASTE ===================== -->
+  <div id="view-waste" class="view" hidden>
+    <p class="q"><b>Gde gubimo robu i koliko je držimo?</b> Waste pokazuje šta je bačeno i zašto. Inventory Days pokazuje koliko novca stoji na lageru.</p>
+    <div class="kpis" id="wasteKpis" style="--n:5"></div>
+    <section class="mod">
+      <div class="grid2">
+        <div class="panel">
+          <div class="mod-h"><h3>Waste po razlogu</h3><span class="lbl">24</span></div>
+          <div class="cat" id="wasteReasons"></div>
+          <p class="insight" id="wasteInsight"></p>
+        </div>
+        <div class="panel">
+          <div class="mod-h"><h3>Inventory Days</h3><span class="lbl">25 · 26</span></div>
+          <div class="stats" id="invStats"></div>
+          <p class="insight" id="invInsight"></p>
+        </div>
+      </div>
+    </section>
+    <section class="mod">
+      <div class="mod-h"><h2><span class="n">23</span>Evidencija otpisa</h2><span class="fx">Waste Cost = <b>Quantity Wasted × Cost</b></span></div>
+      <div class="tw"><table id="wasteInput"></table></div>
+      <div class="row"><button class="btn sm" type="button" id="addWaste">+ Dodaj otpis</button></div>
+    </section>
+  </div>
+
+  <!-- ===================== 4 LABOR ===================== -->
+  <div id="view-labor" class="view" hidden>
+    <p class="q"><b>Koliko nas koštaju ljudi u odnosu na prodaju i koliko produktivno koristimo njihove sate?</b></p>
+    <div class="kpis" id="laborKpis" style="--n:4"></div>
+    <section class="mod">
+      <div class="mod-h"><h2><span class="n">28</span>Prodaja po radnom satu, po satu dana</h2><span class="fx">= <b>prodaja u satu ÷ (ljudi u smeni × radni dani)</b></span></div>
+      <div class="panel">
+        <div class="mod-h"><h3>RSD prodaje po radnom satu</h3><span class="legend"><span><i class="dot" style="background:var(--neg)"></i>Najslabiji sati</span><span><i class="dot" style="background:var(--muted)"></i>Ostali</span></span></div>
+        <div><div class="hours" id="splh"></div><div class="hlabels" id="splhLabels" style="margin-top:6px"></div></div>
+        <div class="tw"><table id="staffInput"></table></div>
+        <p class="insight" id="splhInsight"></p>
+      </div>
+    </section>
+    <section class="mod">
+      <div class="mod-h"><h2><span class="n">27</span>Trošak rada po timu</h2><span class="fx">Labor Cost % = <b>Total Labor Cost ÷ Revenue × 100</b></span></div>
+      <div class="tw"><table id="laborInput"></table></div>
+      <div class="row"><button class="btn sm" type="button" id="addLabor">+ Dodaj tim</button><span class="note">Trošak = ukupan trošak poslodavca (bruto zarade, doprinosi, topli obrok, prekovremeni, spoljni radnici).</span></div>
+    </section>
+  </div>
+
+  <!-- ===================== 5 MARŽA ===================== -->
+  <div id="view-margin" class="view" hidden>
+    <p class="q"><b>Koliko nam osnovna operacija ostavlja?</b> Kanal koji pravi najveći promet nije nužno kanal koji ostavlja najviše novca.</p>
+    <div class="kpis" id="marginKpis" style="--n:5"></div>
+    <section class="mod">
+      <div class="mod-h"><h2><span class="n">31 · 32</span>Contribution po kanalu</h2><span class="fx">CM = <b>Revenue − Variable Costs</b> · CM % = <b>CM ÷ Revenue × 100</b></span></div>
+      <div class="grid3">
+        <div class="panel span2">
+          <div class="mod-h"><h3>Prihod vs ono što ostane</h3><span class="legend"><span><i class="dot" style="background:var(--dead)"></i>Revenue</span><span><i class="dot" style="background:var(--pink)"></i>Contribution</span></span></div>
+          <div class="cat" id="cmBars"></div>
+        </div>
+        <div class="panel">
+          <h3>Jedna prosečna porudžbina</h3>
+          <label class="field"><span class="lbl">Kanal</span><select class="in" id="orderSel"></select></label>
+          <div class="wf" id="orderWf"></div>
+        </div>
+      </div>
+      <div class="tw"><table id="cmTable"></table></div>
+      <p class="insight" id="cmInsight"></p>
+    </section>
+    <section class="mod">
+      <div class="mod-h"><h2>Varijabilni troškovi kanala</h2><span class="note">Food cost po kanalu = stvarni COGS % celog restorana, primenjen na prihod kanala.</span></div>
+      <div class="tw"><table id="chvInput"></table></div>
+    </section>
+  </div>
+
+  <!-- ===================== 6 PROFIT ===================== -->
+  <div id="view-profit" class="view" hidden>
+    <p class="q"><b>Koliko stvarno zarađujemo i koliko moramo da prodamo da bismo bili na nuli?</b></p>
+    <div class="kpis" id="profitKpis" style="--n:5"></div>
+    <section class="mod">
+      <div class="grid2">
+        <div class="panel">
+          <div class="mod-h"><h3>Management P&amp;L</h3><span class="lbl">33 · 34</span></div>
+          <div class="wf" id="wfProfit"></div>
+        </div>
+        <div class="panel">
+          <div class="mod-h"><h3>Break-even</h3><span class="lbl">35 · 36</span></div>
+          <div class="stats" id="bepStats"></div>
+          <label class="toggle"><input type="checkbox" id="laborFixed"> Labor tretiram kao fiksni trošak</label>
+          <p class="insight" id="bepInsight"></p>
+        </div>
+      </div>
+    </section>
+    <section class="mod">
+      <div class="mod-h"><h2>Fiksni operativni troškovi</h2><span class="note">Mesečni iznosi. Provizije platformi i ambalaža se unose u modulu Marža.</span></div>
+      <div class="tw"><table id="fixedInput"></table></div>
+      <div class="row"><button class="btn sm" type="button" id="addFixed">+ Dodaj trošak</button></div>
+    </section>
+  </div>
+
+  <!-- ===================== UNOS PRODAJE ===================== -->
+  <div id="view-unos" class="view" hidden>
+    <section class="mod">
+      <div class="mod-h"><h2><span class="n">A</span>Kanali prodaje</h2><span class="note">Iznosi u RSD za izabrani period. Za In-House „porudžbine“ = broj računa.</span></div>
+      <div class="tw"><table id="chInput"></table></div>
+    </section>
+    <section class="mod">
+      <div class="mod-h"><h2><span class="n">B</span>Prodaja po satu</h2><span class="note">Ukupan promet u svakom satu za ceo period (POS izveštaj po satima).</span></div>
+      <div class="tw"><table id="hourInput"></table></div>
+    </section>
+    <section class="mod">
+      <div class="mod-h"><h2><span class="n">C</span>Prodate količine po artiklu</h2><span class="note">Cene su sa jelovnika insmoke.rs. Meso na kg u kilogramima, juneći obrazi u porcijama od 100 g.</span></div>
+      <div id="menuInput" style="display:grid;gap:10px"></div>
+    </section>
+  </div>
+
+  <!-- ===================== ARHIVA ===================== -->
+  <div id="view-arhiva" class="view" hidden>
+    <p class="q"><b>Svi meseci na jednom mestu.</b> Svaki mesec se čuva posebno. Izaberi mesec u zaglavlju da ga otvoriš ili započneš novi.</p>
+    <p class="note" id="storeNote"></p>
+    <section class="mod">
+      <div class="mod-h"><h2>Promet i break-even po mesecima</h2><span class="legend"><span><i class="dot" style="background:var(--pink)"></i>Promet</span><span><i class="dot" style="background:var(--fg)"></i>Break-even</span></span></div>
+      <div class="panel"><div class="cat" id="archChart"></div></div>
+    </section>
+    <section class="mod">
+      <div class="mod-h"><h2>Arhiva meseci</h2><button class="btn" id="dlXlsx" type="button">Preuzmi Excel</button></div>
+      <div class="tw"><table id="archTable"></table></div>
+      <p class="note">Excel je kompletna kopija svih meseci, u devet listova: Pregled meseci, Kanali, Po satu, Artikli, Recepture, Lager, Otpis, Labor i Fiksni troškovi. Svaki red ima kolonu Mesec, pa se meseci filtriraju i porede. Otvara se u Excelu, Numbers-u ili Google Sheets-u.</p>
+    </section>
+    <section class="mod">
+      <div class="mod-h"><h2>Upravljanje</h2></div>
+      <div class="row"><button class="btn" id="clearMonth" type="button">Obriši unos za ovaj mesec</button><button class="btn" id="loadSample" type="button">Prikaži primer</button></div>
+      <p class="note">„Obriši unos“ briše brojeve izabranog meseca, a zadržava recepture, troškove kanala i fiksne troškove. „Prikaži primer“ samo prikazuje izmišljene brojeve; sačuvani meseci ostaju netaknuti.</p>
+    </section>
+  </div>
+
+  <!-- ===================== FORMULE ===================== -->
+  <div id="view-formule" class="view" hidden>
+    <p class="note">Redosled je redosled izgradnje sistema: SALES → FOOD COST → WASTE &amp; INVENTORY → LABOR → CONTRIBUTION / PRIME COST → PROFIT / BREAK-EVEN. Svaka formula je izračunata na trenutnim podacima.</p>
+    <div id="formulas" style="display:grid;gap:26px"></div>
+  </div>
+
+  <footer><span>In Smoke We Trust · Žorža Klemansoa 29a, Gastrošor, Beograd · 11:00–23:00</span><span>Management izveštaj · iznosi u RSD</span></footer>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+/* =========================== DATA =========================== */
+const CH = [
+  {id:'inhouse', name:'In-House', c:'--c1'},
+  {id:'takeaway',name:'Takeaway', c:'--c2'},
+  {id:'catering',name:'Catering', c:'--c3'},
+  {id:'wolt',    name:'Wolt',     c:'--c4'},
+  {id:'glovo',   name:'Glovo',    c:'--c5'},
+  {id:'misterd', name:'Mister D', c:'--c6'},
+];
+const HOURS = ['11','12','13','14','15','16','17','18','19','20','21','22'];
+const DAYPARTS = [
+  {name:'Ručak', range:'11–15', slots:[0,1,2,3]},
+  {name:'Popodne', range:'15–18', slots:[4,5,6]},
+  {name:'Večera', range:'18–22', slots:[7,8,9,10]},
+  {name:'Kasno veče', range:'22–23', slots:[11]},
+];
+const WASTE_REASONS = ['Expired','Spoilage','Prep Waste','Overproduction','Kitchen Error','Returned Food'];
+const WASTE_SR = {'Expired':'Istekao rok','Spoilage':'Pokvareno','Prep Waste':'Otpad u pripremi','Overproduction':'Višak proizvodnje','Kitchen Error':'Greška kuhinje','Returned Food':'Vraćeno od gosta'};
+const MENU = [
+ {cat:'Food', grp:'Glavna jela', f:.36, items:[
+  ['m1','Brisket obrok','junetina 220 g',1830],['m2','Prase obrok','svinjetina 220 g',1750],['m3','Ćuretina obrok','ćuretina 220 g',1750],
+  ['m4','Premium obrok','3 vrste mesa 300 g',1950],['m5','Brisket burnt ends obrok','junetina 220 g',1850]]},
+ {cat:'Food', grp:'Burgeri', f:.36, items:[
+  ['b1','Brisket burger','140 g',1300],['b2','Prase burger','140 g',1200],['b3','Ćuretina burger','140 g',1200],['b4','Monster burger','200 g',1600]]},
+ {cat:'Food', grp:'Sendviči', f:.33, items:[
+  ['s1','Sendvič sa svinjetinom','100 g',830],['s2','Sendvič sa junetinom','100 g',900],['s3','Sendvič sa ćuretinom','100 g',830]]},
+ {cat:'Food', grp:'Specijali pitmastera', f:.38, items:[
+  ['p1','Juneći obrazi','po 100 g',700,'100 g'],['p2','Smokovane kobasice','250 g',1670],['p3','Svinjska rebra','350 g',1730],['p4','Holy Trinity plate za dvoje','600 g',3770]]},
+ {cat:'Food', grp:'Meso na kg', f:.42, items:[
+  ['k1','Brisket','1 kg',5500,'kg'],['k2','Svinjetina','1 kg',5100,'kg'],['k3','Ćuretina','1 kg',5100,'kg'],['k4','Brisket burnt ends','1 kg',5700,'kg']]},
+ {cat:'Food', grp:'Prilozi i sosovi', f:.22, items:[
+  ['x1','Začinjeni krompir','250 g',450],['x2','Začinjeni krompir + cheddar','300 g',550],['x3','Batat','200 g',490],['x4','Batat + cheddar','250 g',590],
+  ['x5','Kolutići od luka','200 g',430],['x6','Coleslaw salata','150 g',280],['x7','BBQ pasulj','180 g',320],['x8','Specijalni burger sos','',150],
+  ['x9','Domaći BBQ sos','',170],['x10','Marinirani halapenjo','',120],['x11','Marinirani crveni luk','',110],['x12','Džem od luka','',180],
+  ['x13','Domaći hleb','',100],['x14','Topljeni cheddar','70 g',150]]},
+ {cat:'Desserts', grp:'Kolači', f:.25, items:[['d1','Mak kolač sa sladoledom od vanile','',510]]},
+ {cat:'Beverages', grp:'Kafa i čaj', f:.18, items:[
+  ['cf1','Espresso','',220],['cf2','Cappuccino','',270],['cf3','Latte macchiato','',280],['cf4','Americano','',230],['cf5','Milford čaj','',250]]},
+ {cat:'Beverages', grp:'Voda', f:.30, items:[
+  ['w1','Rosa 0,75','',390],['w2','Rosa 0,33','',220],['w3','Rosa gazirana 0,75','',390],['w4','Rosa gazirana 0,33','',220],['w5','Roemerquelle lemongras 0,33','',240]]},
+ {cat:'Beverages', grp:'Sokovi i energetska', f:.38, items:[
+  ['sd1','Coca-Cola 0,25','',290],['sd2','Coca-Cola Zero 0,25','',290],['sd3','Coca-Cola Lime 0,25','',290],['sd4','Fanta 0,25','',290],['sd5','Sprite 0,25','',290],
+  ['sd6','Schweppes Bitter Lemon 0,25','',290],['sd7','Schweppes Tonic 0,25','',290],['sd8','Next narandža 0,20','',220],['sd9','Next jabuka 0,20','',220],
+  ['sd10','Next šumsko voće 0,20','',220],['sd11','Fuzetea breskva 0,33','',290],['sd12','Kombucha breskva 0,33','',490],['sd13','Kombucha malina 0,33','',490],
+  ['sd14','Ultra Energy 0,25','',340],['sd15','Red Bull 0,25','',460]]},
+ {cat:'Alcohol', grp:'Pivo', f:.40, items:[
+  ['br1','Docker lager točeno 0,40','',390],['br2','Gostujuće pivo 0,40','',430],['br3','Primator lager 0,50','',530],['br4','Primator pšenica 0,50','',590],
+  ['br5','Salto Stout 0,33','',470],['br6','Kabinet Brka 0,33','',510],['br7','Kabinet Tomato Gose 0,50','',630],['br8','Zaječarsko 0,33','',320],
+  ['br9','Heineken 0,25','',360],['br10','Birra Moretti 0,33','',350]]},
+ {cat:'Alcohol', grp:'Vino i prosecco', f:.35, items:[
+  ['wn1','Tri Doline (crveno) 0,75','',4450],['wn2','Veliki dečko (crveno) 0,15','',490],['wn3','Belina (belo) 0,75','',3250],['wn4','Belina (belo) 0,15','',590],
+  ['wn5','Rosé&rose 0,75','',2550],['wn6','Rosé&rose 0,15','',490],['wn7','Prosecco Masottina 0,75','',2700],['wn8','Prosecco Masottina 0,15','',560]]},
+ {cat:'Alcohol', grp:'Kokteli i G&T', f:.25, items:[
+  ['ck1','Koktel kuće','',690],['gt1','Bombay Sapphire & tonic','',550],['gt2','Young Salt & tonic','',530],['gt3','Nikka & tonic','',790],['gt4','Omaja & tonic','',530]]},
+ {cat:'Alcohol', grp:'Žestoka pića 0,03', f:.30, items:[
+  ['sp1','Finlandia','',330],['sp2','Grey Goose','',630],['sp3','Spasić šljiva','',330],['sp4','Spasić kajsija','',330],['sp5','Spasić Milica','',330],
+  ['sp6','Zlatna rakija viljamovka','',350],['sp7','Zlatna rakija dunja','',350],['sp8','Jack Daniel’s','',390],['sp9','Jack Single Barrel','',590],
+  ['sp10','Gentleman Jack','',590],['sp11','Nikka whisky','',810],['sp12','Rémy Martin','',550],['sp13','Vinjak 5','',320],['sp14','Baileys','',370],
+  ['sp15','Bombay Sapphire','',430],['sp16','Young Salt gin','',410],['sp17','Nikka gin','',670],['sp18','Omaja gin','',410]]},
+];
+const CATS = ['Food','Beverages','Desserts','Alcohol','Other'];
+const CATNAME = {Food:'Hrana',Beverages:'Bezalkoholna pića',Desserts:'Deserti',Alcohol:'Alkohol',Other:'Ostalo / neraspoređeno'};
+const CATCOL = {Food:'--c1',Beverages:'--c4',Desserts:'--c3',Alcohol:'--c2',Other:'--c7'};
+const ITEMS = []; MENU.forEach(g=>g.items.forEach(([id,name,det,price,unit])=>ITEMS.push({id,name,det,price,unit:unit||'kom',cat:g.cat,grp:g.grp,f:g.f})));
+const isFood = c => c==='Food'||c==='Desserts';
+
+/* =========================== SAMPLE =========================== */
+const SAMPLE = {
+  monthKey:'2026-09', period:'Septembar 2026', prevPeriod:'Avgust 2026', days:30, hpd:12, today:172000,
+  ch:{
+    inhouse:{rev:2450000,prev:2300000,orders:1020,items:3950,guests:1780},
+    takeaway:{rev:380000,prev:360000,orders:190,items:520},
+    catering:{rev:420000,prev:250000,orders:6,items:610},
+    wolt:{rev:1150000,prev:1050000,orders:520,items:1350},
+    glovo:{rev:390000,prev:410000,orders:185,items:470},
+    misterd:{rev:160000,prev:120000,orders:78,items:190},
+  },
+  hourly:[180000,420000,520000,430000,260000,250000,330000,600000,700000,620000,450000,190000],
+  qty:{m1:310,m2:190,m3:95,m4:240,m5:120,b1:260,b2:170,b3:80,b4:140,s1:110,s2:130,s3:60,
+    p1:90,p2:85,p3:150,p4:70,k1:38,k2:22,k3:12,k4:16,
+    x1:260,x2:180,x3:120,x4:90,x5:150,x6:140,x7:110,x8:120,x9:210,x10:60,x11:50,x12:80,x13:160,x14:130,
+    d1:95,cf1:120,cf2:70,cf3:40,cf4:50,cf5:25,w1:150,w2:260,w3:90,w4:140,w5:60,
+    sd1:320,sd2:210,sd3:60,sd4:80,sd5:70,sd6:40,sd7:30,sd8:60,sd9:50,sd10:40,sd11:110,sd12:45,sd13:40,sd14:30,sd15:45,
+    br1:520,br2:210,br3:110,br4:90,br5:70,br6:60,br7:40,br8:120,br9:80,br10:70,
+    wn1:10,wn2:60,wn3:14,wn4:70,wn5:8,wn6:40,wn7:9,wn8:50,ck1:90,gt1:60,gt2:40,gt3:15,gt4:35,
+    sp1:25,sp2:10,sp3:70,sp4:40,sp5:30,sp6:25,sp7:30,sp8:45,sp9:10,sp10:10,sp11:5,sp12:6,sp13:15,sp14:12,sp15:20,sp16:15,sp17:6,sp18:12},
+  recipeCost:{},
+  recipes:{
+    m1:[{n:'Juneće grudi (sirovo, prinos 50%)',q:0.44,u:'kg',p:1450},{n:'Coleslaw salata',q:0.12,u:'kg',p:220},{n:'Crveni pasulj u BBQ sosu',q:0.12,u:'kg',p:260},
+        {n:'Domaći hleb',q:1,u:'kom',p:35},{n:'Domaći BBQ sos',q:0.05,u:'kg',p:380},{n:'Marinirani luk i krastavci',q:0.06,u:'kg',p:300},{n:'Rub (so, biber, začini)',q:0.015,u:'kg',p:900}],
+    b1:[{n:'Juneće grudi (sirovo, prinos 50%)',q:0.28,u:'kg',p:1450},{n:'Brioš lepinja',q:1,u:'kom',p:60},{n:'Coleslaw salata',q:0.06,u:'kg',p:220},
+        {n:'Džem od luka',q:0.03,u:'kg',p:450},{n:'Domaći BBQ sos',q:0.03,u:'kg',p:380},{n:'Kiseli krastavci',q:0.03,u:'kg',p:300}],
+  },
+  inv:{food:{open:620000,buy:1240000,close:540000}, bev:{open:380000,buy:440000,close:360000}},
+  foodRevOverride:0,
+  waste:[
+    {what:'Brisket (višak posle servisa)',reason:'Overproduction',qty:6.5,cost:2900},
+    {what:'Svinjski but — trimovanje',reason:'Prep Waste',qty:9,cost:780},
+    {what:'Coleslaw salata',reason:'Expired',qty:7,cost:220},
+    {what:'Domaći hleb',reason:'Overproduction',qty:60,cost:35},
+    {what:'Ćureće grudi — presušeno',reason:'Kitchen Error',qty:2.2,cost:1900},
+    {what:'Brisket burger — vraćen',reason:'Returned Food',qty:6,cost:513},
+    {what:'Zelena salata i povrće',reason:'Spoilage',qty:8,cost:260},
+    {what:'Točeno pivo — pena i linija',reason:'Prep Waste',qty:18,cost:180},
+  ],
+  labor:[
+    {role:'Kuhinja i pitmasteri',cost:560000,hours:1050},
+    {role:'Sala i šank',cost:420000,hours:1200},
+    {role:'Pakovanje i pomoćno osoblje',cost:140000,hours:420},
+    {role:'Menadžment',cost:200000,hours:200},
+  ],
+  staff:[5,7,8,8,7,6,6,8,9,9,8,5],
+  chv:{
+    inhouse:{comm:0,pack:0,deliv:0,fee:1.2},
+    takeaway:{comm:0,pack:120,deliv:0,fee:1.2},
+    catering:{comm:0,pack:800,deliv:1500,fee:0},
+    wolt:{comm:30,pack:150,deliv:0,fee:0},
+    glovo:{comm:30,pack:150,deliv:0,fee:0},
+    misterd:{comm:25,pack:150,deliv:0,fee:0},
+  },
+  fixed:[
+    {n:'Zakup prostora',v:450000},{n:'Energija (struja, gas, voda)',v:160000},{n:'Drva za smoker (bukva)',v:60000},
+    {n:'Marketing',v:120000},{n:'Software i POS',v:35000},{n:'Održavanje opreme',v:40000},{n:'Knjigovodstvo',v:30000},{n:'Ostalo',v:60000},
+  ],
+  laborFixed:true,
+};
+for(const k in SAMPLE.qty){ const kg=k.startsWith('k'); SAMPLE.qty[k] = kg ? Math.round(SAMPLE.qty[k]*0.72*10)/10 : Math.round(SAMPLE.qty[k]*0.72); }
+ITEMS.forEach(i=>{ if(!SAMPLE.recipes[i.id]) SAMPLE.recipeCost[i.id] = Math.round(i.price*i.f/10)*10; });
+
+const EMPTY = () => ({monthKey:curKey(), period:'', prevPeriod:'', days:30, hpd:12, today:0,
+  ch:Object.fromEntries(CH.map(c=>[c.id,{rev:0,prev:0,orders:0,items:0,guests:0}])), hourly:HOURS.map(()=>0), qty:{},
+  recipeCost:{}, recipes:{}, inv:{food:{open:0,buy:0,close:0},bev:{open:0,buy:0,close:0}}, foodRevOverride:0,
+  waste:[], labor:[{role:'Kuhinja',cost:0,hours:0},{role:'Sala i šank',cost:0,hours:0}], staff:HOURS.map(()=>0),
+  chv:Object.fromEntries(CH.map(c=>[c.id,{comm:0,pack:0,deliv:0,fee:0}])), fixed:[{n:'Zakup prostora',v:0},{n:'Energija',v:0}], laborFixed:true});
+
+const KEY='iswt-sales-v1';
+let S, isSample=true;
+function load(){
+  try{ const r=localStorage.getItem(KEY); if(r){ const o=JSON.parse(r);
+    if(o.sample){ S=JSON.parse(JSON.stringify(SAMPLE)); isSample=true; return; }
+    const base=EMPTY(); S=Object.assign(base,o.state); if(!/^\d{4}-\d{2}$/.test(S.monthKey||'')) S.monthKey=parseLabel(S.period)||curKey(); isSample=false; return; } }catch(e){}
+  S=JSON.parse(JSON.stringify(SAMPLE)); isSample=true;
+}
+function localSave(){ try{ localStorage.setItem(KEY, JSON.stringify({state:S, sample:isSample})); }catch(e){} }
+const clone = o => JSON.parse(JSON.stringify(o));
+const MONTHS_SR=['Januar','Februar','Mart','April','Maj','Jun','Jul','Avgust','Septembar','Oktobar','Novembar','Decembar'];
+const pad2 = n => String(n).padStart(2,'0');
+function curKey(){ const d=new Date(); return d.getFullYear()+'-'+pad2(d.getMonth()+1); }
+function monthLabel(k){ const [y,m]=String(k).split('-').map(Number); return (MONTHS_SR.at(m-1)||'?')+' '+y; }
+function prevKey(k){ let [y,m]=k.split('-').map(Number); m--; if(m<1){m=12;y--;} return y+'-'+pad2(m); }
+function daysIn(k){ const [y,m]=k.split('-').map(Number); return new Date(y,m,0).getDate(); }
+function parseLabel(t){ if(!t) return null; const m=String(t).trim().match(/^(\S+)\s+(\d{4})$/); if(!m) return null; const i=MONTHS_SR.findIndex(x=>x.toLowerCase()===m[1].toLowerCase()); return i<0?null:m[2]+'-'+pad2(i+1); }
+function syncLabels(){ S.period=monthLabel(S.monthKey); S.prevPeriod=monthLabel(prevKey(S.monthKey)); }
+
+/* =========================== FORMAT =========================== */
+const nf0 = new Intl.NumberFormat('sr-Latn-RS',{maximumFractionDigits:0});
+const nf1 = new Intl.NumberFormat('sr-Latn-RS',{minimumFractionDigits:1,maximumFractionDigits:1});
+const nf2 = new Intl.NumberFormat('sr-Latn-RS',{minimumFractionDigits:2,maximumFractionDigits:2});
+const nfq = new Intl.NumberFormat('sr-Latn-RS',{maximumFractionDigits:3});
+const rsd = v => isFinite(v) ? nf0.format(Math.round(v)) : '—';
+const pct = v => isFinite(v) ? nf1.format(v)+'%' : '—';
+const dec = v => isFinite(v) ? nf2.format(v) : '—';
+const div = (a,b) => b ? a/b : NaN;
+const num = (s,decimal) => { if(typeof s==='number') return s; let t=String(s).replace(/\s/g,'');
+  if(t.includes(',')) t=t.replace(/\./g,'').replace(',','.');
+  else if(!(decimal && (t.match(/\./g)||[]).length===1)) t=t.replace(/\./g,'');
+  t=t.replace(/[^\d.\-]/g,''); const v=parseFloat(t); return isFinite(v)?v:0; };
+const kShort = v => !isFinite(v)?'—': Math.abs(v)>=1e6 ? nf2.format(v/1e6)+'M' : Math.abs(v)>=1e3 ? nf0.format(v/1e3)+'k' : nf0.format(v);
+const esc = s => String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const sgn = v => isFinite(v)? (v>0?'+':v<0?'−':'')+rsd(Math.abs(v)) : '—';
+const sgnPct = v => isFinite(v)? (v>0?'+':v<0?'−':'')+nf1.format(Math.abs(v))+'%' : '—';
+function growthPill(g){ if(!isFinite(g)) return '<span class="pill flat">—</span>'; const cls=g>0.05?'pos':g<-0.05?'neg':'flat'; return `<span class="pill ${cls}">${g>0?'▲ +':g<0?'▼ ':''}${nf1.format(g)}%</span>`; }
+// status: lower-is-better thresholds [good, watch]
+function st(v, good, watch, higherBetter){ if(!isFinite(v)) return 'flat'; if(higherBetter) return v>=good?'pos':v>=watch?'warn':'neg'; return v<=good?'pos':v<=watch?'warn':'neg'; }
+const STL = {pos:'U redu',warn:'Prati',neg:'Kritično',flat:'Nema podataka'};
+const pill = (cls,txt) => `<span class="pill ${cls}">${txt}</span>`;
+const $ = id => document.getElementById(id);
+const col = v => `var(${v})`;
+function fmtIn(v,decimal){ return v ? (decimal? nfq.format(v) : nf0.format(v)) : ''; }
+
+/* =========================== CALC =========================== */
+function recipeSum(id){ const L=S.recipes[id]; return L&&L.length ? L.reduce((a,l)=>a+(+l.q||0)*(+l.p||0),0) : null; }
+function calc(){
+  const days=+S.days||0;
+  const ch = CH.map(c=>{ const d=S.ch[c.id]||{}; return {...c, rev:+d.rev||0, prev:+d.prev||0, orders:+d.orders||0, items:+d.items||0, guests:+d.guests||0}; });
+  const T = {rev:0,prev:0,orders:0,items:0};
+  ch.forEach(c=>{T.rev+=c.rev;T.prev+=c.prev;T.orders+=c.orders;T.items+=c.items;});
+  ch.forEach(c=>{ c.salesMix=div(c.rev,T.rev)*100; c.orderMix=div(c.orders,T.orders)*100; c.aov=div(c.rev,c.orders);
+    c.growth=div(c.rev-c.prev,c.prev)*100; c.ipo=div(c.items,c.orders); c.aip=div(c.rev,c.items); c.daily=div(c.rev,days); });
+  const ih = ch[0];
+  T.guests=ih.guests; T.aov=div(T.rev,T.orders); T.growth=div(T.rev-T.prev,T.prev)*100;
+  T.rpg=div(ih.rev,ih.guests); T.avgCheck=div(ih.rev,ih.orders); T.gpc=div(ih.guests,ih.orders);
+  T.ipo=div(T.items,T.orders); T.aip=div(T.rev,T.items); T.daily=div(T.rev,days);
+  T.hoursTotal=days*(+S.hpd||0); T.sph=div(T.rev,T.hoursTotal);
+  const hr = S.hourly.map(v=>+v||0); const hrSum=hr.reduce((a,b)=>a+b,0);
+  const dp = DAYPARTS.map(d=>{ const r=d.slots.reduce((a,i)=>a+hr[i],0); return {...d, rev:r, mix:div(r,T.rev)*100}; });
+  const it = ITEMS.map(i=>{ const q=+S.qty[i.id]||0; const rs=recipeSum(i.id); const rc = rs!=null? rs : (+S.recipeCost[i.id]||0);
+    return {...i, q, rev:q*i.price, rc, hasRecipe:rs!=null, theo:q*rc, fc:div(rc,i.price)*100}; });
+  const itRev = it.reduce((a,b)=>a+b.rev,0), itQty = it.reduce((a,b)=>a+b.q,0);
+  it.forEach(i=>{ i.mix=div(i.rev,T.rev)*100; i.qmix=div(i.q,itQty)*100; });
+  const cats = CATS.map(k=>{ const rows=it.filter(i=>i.cat===k); const r=k==='Other'? T.rev-itRev : rows.reduce((a,b)=>a+b.rev,0);
+    const grps=[...new Set(rows.map(i=>i.grp))].map(g=>{const gr=rows.filter(i=>i.grp===g).reduce((a,b)=>a+b.rev,0); return {g, rev:gr, mix:div(gr,T.rev)*100};});
+    return {k, rev:r, mix:div(r,T.rev)*100, grps}; });
+
+  /* ---- 2 FOOD COST ---- */
+  const F = {};
+  F.itemFoodRev = it.filter(i=>isFood(i.cat)).reduce((a,b)=>a+b.rev,0);
+  F.itemBevRev  = it.filter(i=>!isFood(i.cat)).reduce((a,b)=>a+b.rev,0);
+  const share = div(F.itemFoodRev, itRev);
+  F.foodRevAuto = isFinite(share) ? T.rev*share : 0;
+  F.foodRev = (+S.foodRevOverride>0) ? +S.foodRevOverride : F.foodRevAuto;
+  F.bevRev = Math.max(0, T.rev - F.foodRev);
+  F.theoFood = it.filter(i=>isFood(i.cat)).reduce((a,b)=>a+b.theo,0);
+  F.theoBev  = it.filter(i=>!isFood(i.cat)).reduce((a,b)=>a+b.theo,0);
+  F.theo = F.theoFood + F.theoBev;
+  const inv = S.inv;
+  F.actFood = (+inv.food.open||0)+(+inv.food.buy||0)-(+inv.food.close||0);
+  F.actBev  = (+inv.bev.open||0)+(+inv.bev.buy||0)-(+inv.bev.close||0);
+  F.act = F.actFood + F.actBev;
+  F.theoFcPct = div(F.theoFood,F.foodRev)*100; F.actFcPct = div(F.actFood,F.foodRev)*100;
+  F.theoBcPct = div(F.theoBev,F.bevRev)*100;   F.actBcPct = div(F.actBev,F.bevRev)*100;
+  F.theoTotPct = div(F.theo,T.rev)*100; F.actTotPct = div(F.act,T.rev)*100;
+  F.varFood = F.actFood - F.theoFood; F.varBev = F.actBev - F.theoBev; F.var = F.act - F.theo;
+  F.hasActual = F.act>0;
+  F.cogs = F.hasActual ? F.act : F.theo; // COGS used downstream
+  F.cogsPct = div(F.cogs, T.rev)*100;
+
+  /* ---- 3 WASTE & INVENTORY ---- */
+  const W = {};
+  W.rows = S.waste.map(w=>({...w, val:(+w.qty||0)*(+w.cost||0)}));
+  W.total = W.rows.reduce((a,b)=>a+b.val,0);
+  W.pct = div(W.total, F.cogs)*100;
+  W.byReason = WASTE_REASONS.map(r=>({r, v:W.rows.filter(x=>x.reason===r).reduce((a,b)=>a+b.val,0)}));
+  W.ofVar = div(W.total, F.var)*100;
+  W.open = (+inv.food.open||0)+(+inv.bev.open||0); W.close=(+inv.food.close||0)+(+inv.bev.close||0);
+  W.avgInv = (W.open+W.close)/2; W.days = div(W.avgInv, F.cogs)*days;
+  W.avgFood = ((+inv.food.open||0)+(+inv.food.close||0))/2; W.daysFood = div(W.avgFood,F.actFood)*days;
+  W.avgBev = ((+inv.bev.open||0)+(+inv.bev.close||0))/2; W.daysBev = div(W.avgBev,F.actBev)*days;
+
+  /* ---- 4 LABOR ---- */
+  const L = {};
+  L.rows = S.labor.map(l=>({...l, cost:+l.cost||0, hours:+l.hours||0}));
+  L.cost = L.rows.reduce((a,b)=>a+b.cost,0); L.hours = L.rows.reduce((a,b)=>a+b.hours,0);
+  L.pct = div(L.cost,T.rev)*100; L.rplh = div(T.rev,L.hours); L.cph = div(L.cost,L.hours);
+  L.rows.forEach(r=>{ r.pct=div(r.cost,T.rev)*100; r.share=div(r.cost,L.cost)*100; r.cph=div(r.cost,r.hours); });
+  L.staff = S.staff.map(v=>+v||0);
+  L.slot = hr.map((v,i)=> div(v, L.staff[i]*days));
+  L.schedHours = L.staff.reduce((a,b)=>a+b,0)*days;
+  L.slotAvg = div(hrSum, L.schedHours);
+
+  /* ---- 5 CONTRIBUTION & PRIME ---- */
+  const M = {};
+  M.prime = F.cogs + L.cost; M.primePct = div(M.prime,T.rev)*100;
+  const cogsRate = div(F.cogs,T.rev); const laborRate = div(L.cost,T.rev);
+  M.ch = ch.map(c=>{ const v=S.chv[c.id]||{};
+    const food=c.rev*(cogsRate||0), comm=c.rev*(+v.comm||0)/100, pack=c.orders*(+v.pack||0), deliv=c.orders*(+v.deliv||0), fee=c.rev*(+v.fee||0)/100;
+    const lab = S.laborFixed ? 0 : c.rev*(laborRate||0);
+    const varc = food+comm+pack+deliv+fee+lab; const cm=c.rev-varc;
+    return {...c, food, comm, pack, deliv, fee, lab, varc, cm, cmPct:div(cm,c.rev)*100, cmOrder:div(cm,c.orders), chanCost:comm+pack+deliv+fee}; });
+  M.chanCost = M.ch.reduce((a,b)=>a+b.chanCost,0);
+  M.cm = M.ch.reduce((a,b)=>a+b.cm,0); M.cmPct = div(M.cm,T.rev)*100;
+
+  /* ---- 6 PROFIT & BEP ---- */
+  const P = {};
+  P.fixedOpex = S.fixed.reduce((a,b)=>a+(+b.v||0),0);
+  P.otherOpex = M.chanCost + P.fixedOpex;
+  P.op = T.rev - F.cogs - L.cost - P.otherOpex; P.opPct = div(P.op,T.rev)*100;
+  P.fixed = P.fixedOpex + (S.laborFixed ? L.cost : 0);
+  P.bep = div(P.fixed, M.cmPct/100); P.dbep = div(P.bep, days);
+  P.safety = div(T.rev-P.bep, T.rev)*100;
+  P.today = +S.today||0; P.todayDiff = P.today - P.dbep;
+  return {ch,T,hr,hrSum,dp,it,itRev,itQty,cats,F,W,L,M,P,days};
+}
+
+/* =========================== RENDER =========================== */
+let sortBy='rev', showAll=false, recipeItem='m1', orderCh='wolt';
+function kpiHTML(list){ return list.map(k=>`<div class="kpi ${k.hero?'hero':''}"><span class="lbl">${k.l}</span><span class="v ${k.vc||''}">${k.v}</span>${k.s?`<span class="s">${k.s}</span>`:''}${k.p||''}</div>`).join(''); }
+const R$ = v => rsd(v)+'<small>RSD</small>';
+
+function render(){
+  syncLabels();
+  const R = calc(), {ch,T,F,W,L,M,P} = R;
+  $('sampleBar').hidden = !isSample;
+  const per = S.period||'izabrani period', prev = S.prevPeriod||'prethodni period';
+  renderPregled(R, per); renderSales(R, per, prev); renderFood(R); renderWaste(R); renderLabor(R); renderMargin(R); renderProfit(R);
+  renderFormulas(R); updateComputedCells(R); renderArchive();
+}
+
+function wfRows(el, rows, max){
+  el.innerHTML = rows.map(r=>{
+    const left = Math.max(0,Math.min(r.from,r.to))/max*100, w = Math.abs(r.to-r.from)/max*100;
+    return `<div class="wfrow ${r.total?'total':''}"><span>${r.total?'<b>':''}${r.l}${r.total?'</b>':''}${r.s?`<br><span class="fx">${r.s}</span>`:''}</span>
+      <span class="wftrack"><i style="left:${left}%;width:${Math.max(w,0.3)}%;background:${r.c}"></i></span>
+      <span class="r ${r.vc||''}">${r.v}</span></div>`; }).join('');
+}
+
+function renderPregled(R, per){
+  const {T,F,W,L,M,P} = R;
+  $('perName').textContent = per;
+  $('dbep').textContent = rsd(P.dbep);
+  const d=P.todayDiff; $('todayDiff').textContent = P.today&&isFinite(d) ? sgn(d)+' RSD' : '—';
+  $('todayDiff').className = 'big '+(P.today&&isFinite(d)?(d>=0?'vpos':'vneg'):'');
+  const mx = Math.max(P.today, P.dbep||0)*1.15 || 1;
+  $('todayBar').innerHTML = `<i style="width:${P.today/mx*100}%;background:${d>=0?'var(--pos)':'var(--neg)'}"></i>${isFinite(P.dbep)?`<span class="bepmark" style="left:${P.dbep/mx*100}%"><span>Break-even</span></span>`:''}`;
+  $('todayNote').innerHTML = !isFinite(P.dbep) ? 'Break-even se računa kad uneseš troškove u module 2, 4, 5 i 6.' :
+    !P.today ? 'Unesi današnju prodaju iz kase da vidiš da li si iznad break-even tempa.' :
+    d>=0 ? `Danas si <b>${rsd(d)} RSD</b> iznad nule. Taj iznos ide na profit, jer su fiksni troškovi za ovaj dan pokriveni.` :
+    `Danas fali <b>${rsd(-d)} RSD</b> do break-even tempa za ovaj dan.`;
+  const pace = T.daily - P.dbep;
+  $('monthPace').innerHTML = [
+    ['Prosečna dnevna prodaja','Revenue ÷ radni dani', rsd(T.daily)],
+    ['Daily break-even','BEP ÷ radni dani', rsd(P.dbep)],
+    ['Razlika po danu','prosek − break-even', `<span class="${pace>=0?'vpos':'vneg'}">${sgn(pace)}</span>`],
+    ['Margin of safety','(Revenue − BEP) ÷ Revenue', `<span class="${P.safety>=0?'vpos':'vneg'}">${pct(P.safety)}</span>`],
+  ].map(([k,f,v])=>`<div class="stat"><span class="k"><b>${k}</b><span class="fx">${f}</span></span><span class="v">${v}</span></div>`).join('');
+
+  const fcS = st(F.hasActual?F.actTotPct:F.theoTotPct,33,37), wS=st(W.pct,3,5), lS=st(L.pct,30,34), pS=st(M.primePct,62,66), oS=st(P.opPct,10,5,true);
+  const cards = [
+    {v:'sales', step:'1 · SALES', q:'Koliko i gde prodajemo?', val:rsd(T.rev), sub:`${growthPill(T.growth)} vs prošli period`, s:isFinite(T.growth)?(T.growth>=0?'pos':'neg'):'flat'},
+    {v:'food', step:'2 · FOOD COST', q:'Koliko roba košta?', val:pct(F.hasActual?F.actTotPct:F.theoTotPct), sub:`${pill(fcS,STL[fcS])} varijansa ${kShort(F.var)}`, s:fcS},
+    {v:'waste', step:'3 · WASTE & LAGER', q:'Gde gubimo robu?', val:pct(W.pct), sub:`${pill(wS,STL[wS])} lager ${isFinite(W.days)?nf1.format(W.days)+' dana':'—'}`, s:wS},
+    {v:'labor', step:'4 · LABOR', q:'Koliko koštaju ljudi?', val:pct(L.pct), sub:`${pill(lS,STL[lS])} ${rsd(L.rplh)} RSD/h`, s:lS},
+    {v:'margin', step:'5 · PRIME & CM', q:'Šta ostavlja operacija?', val:pct(M.primePct), sub:`${pill(pS,STL[pS])} CM ${pct(M.cmPct)}`, s:pS},
+    {v:'profit', step:'6 · PROFIT', q:'Koliko zarađujemo?', val:pct(P.opPct), sub:`${pill(oS,STL[oS])} ${kShort(P.op)} RSD`, s:oS},
+  ];
+  $('chain').innerHTML = cards.map(c=>`<button type="button" data-go="${c.v}"><i class="stripe" style="background:var(--${c.s==='pos'?'pos':c.s==='warn'?'warn':c.s==='neg'?'neg':'line'})"></i><span class="step">${c.step}</span><span class="qq">${c.q}</span><span class="v">${c.val}</span><span class="qq">${c.sub}</span></button>`).join('');
+  $('chain').querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>show(b.dataset.go));
+
+  const per100 = v => T.rev? rsd(v/T.rev*100)+' RSD' : '—';
+  const rows = pnlRows(R);
+  wfRows($('wfPregled'), rows.map(r=>({...r, v: r.total? `${per100(r.amount)}` : `−${per100(r.amount)}`, vc: r.total? (r.amount>=0?'vpos':'vneg') : '' })), T.rev||1);
+  $('wfInsight').innerHTML = T.rev ? `Od svakih 100 RSD prometa: roba ${rsd(F.cogs/T.rev*100)}, ljudi ${rsd(L.cost/T.rev*100)}, provizije i ambalaža ${rsd(M.chanCost/T.rev*100)}, fiksni troškovi ${rsd(P.fixedOpex/T.rev*100)}. Ostaje <b>${rsd(P.op/T.rev*100)} RSD</b> operativnog profita.` : 'Unesi prodaju da vidiš raspodelu.';
+}
+function pnlRows(R){
+  const {T,F,L,M,P}=R; let run=T.rev; const out=[];
+  out.push({l:'Revenue', from:0, to:T.rev, c:'var(--pink)', amount:T.rev, total:true});
+  [['COGS', F.cogs, F.hasActual?'stvarni':'teorijski','var(--c2)'],['Labor', L.cost,'','var(--c3)'],['Provizije, ambalaža, dostava', M.chanCost,'varijabilni troškovi kanala','var(--c4)'],['Fiksni troškovi', P.fixedOpex,'zakup, energija, marketing…','var(--c7)']]
+   .forEach(([l,a,s,c])=>{ out.push({l, s, from:run-a, to:run, c, amount:a}); run-=a; });
+  out.push({l:'Operating Profit', from:0, to:Math.max(P.op,0), c:P.op>=0?'var(--pos)':'var(--neg)', amount:P.op, total:true});
+  return out;
+}
+
+function renderSales(R, per, prev){
+  const {ch,T} = R;
+  $('kpis').innerHTML = kpiHTML([
+    {hero:1,l:'Total Revenue',v:R$(T.rev),s:esc(per)},
+    {l:'Total Orders',v:rsd(T.orders),s:'računi + porudžbine'},
+    {l:'Overall AOV',v:R$(T.aov),s:'Revenue ÷ Orders'},
+    {l:'Total Guests',v:rsd(T.guests),s:'In-House gosti'},
+    {l:'Revenue / Guest',v:R$(T.rpg),s:'In-House ÷ gosti'},
+    {l:'Items / Order',v:dec(T.ipo),s:'artikli ÷ porudžbine'},
+    {l:'Sales Growth',v:isFinite(T.growth)?sgnPct(T.growth):'—',vc:isFinite(T.growth)?(T.growth>=0?'vpos':'vneg'):'',s:'vs '+esc(prev)},
+  ]);
+  const maxMix = Math.max(...ch.map(c=>c.salesMix||0),1);
+  $('chTable').innerHTML = `<thead><tr><th>Kanal</th><th>Revenue (RSD)</th><th>Sales Mix %</th><th>Orders</th><th>Order Mix %</th><th>AOV (RSD)</th><th>Growth %</th></tr></thead><tbody>`+
+    ch.map(c=>`<tr><td><span class="ch"><i class="dot" style="background:${col(c.c)}"></i>${c.name}</span></td><td>${rsd(c.rev)}</td>
+      <td><span class="bar-cell">${pct(c.salesMix)}<span class="minibar"><i style="width:${(c.salesMix||0)/maxMix*100}%;background:${col(c.c)}"></i></span></span></td>
+      <td>${rsd(c.orders)}</td><td>${pct(c.orderMix)}</td><td>${rsd(c.aov)}</td><td>${growthPill(c.growth)}</td></tr>`).join('')+
+    `</tbody><tfoot><tr><td>Total</td><td>${rsd(T.rev)}</td><td>${T.rev?'100,0%':'—'}</td><td>${rsd(T.orders)}</td><td>${T.orders?'100,0%':'—'}</td><td>${rsd(T.aov)}</td><td>${growthPill(T.growth)}</td></tr></tfoot>`;
+  const seg = key => ch.map(c=>{ const w=c[key]||0; return w>0?`<span style="width:${w}%;background:${col(c.c)}" title="${c.name}: ${pct(w)}">${w>=7?nf0.format(w)+'%':''}</span>`:''; }).join('');
+  $('stackRev').innerHTML = seg('salesMix'); $('stackOrd').innerHTML = seg('orderMix');
+  $('legend').innerHTML = ch.map(c=>`<span><i class="dot" style="background:${col(c.c)}"></i>${c.name}</span>`).join('');
+  const gaps = ch.filter(c=>isFinite(c.salesMix)&&isFinite(c.orderMix)).map(c=>({c,d:c.orderMix-c.salesMix})).sort((a,b)=>b.d-a.d);
+  $('mixInsight').innerHTML = gaps.length && Math.abs(gaps[0].d)>=1
+    ? `<b>${gaps[0].c.name}</b> nosi ${pct(gaps[0].c.orderMix)} porudžbina, a ${pct(gaps[0].c.salesMix)} prihoda. Prosečan račun ${rsd(gaps[0].c.aov)} RSD je ispod proseka restorana (${rsd(T.aov)} RSD).`
+    : 'Unesi prihod i broj porudžbina po kanalima.';
+  $('guestStats').innerHTML = [['Revenue per Guest','In-House Revenue ÷ gosti',rsd(T.rpg)],['Average Check','In-House Revenue ÷ računi',rsd(T.avgCheck)],['Guests per Check','gosti ÷ računi',dec(T.gpc)]]
+    .map(([k,f,v])=>`<div class="stat"><span class="k"><b>${k}</b><span class="fx">${f}</span></span><span class="v">${v}</span></div>`).join('');
+  $('guestInsight').innerHTML = isFinite(T.gpc) ? `Za stolom sedi prosečno ${dec(T.gpc)} gosta po računu. Svaki gost donese ${rsd(T.rpg)} RSD, pa račun raste kad raste broj ljudi za stolom, čak i ako gost ne troši više.` : 'Unesi In-House prihod, broj računa i broj gostiju.';
+  $('opsTable').innerHTML = `<thead><tr><th>Kanal</th><th>Artikli</th><th>Items / Order</th><th>Avg Item Price</th><th>Daily Sales</th><th>Prethodni period</th></tr></thead><tbody>`+
+    ch.map(c=>`<tr><td><span class="ch"><i class="dot" style="background:${col(c.c)}"></i>${c.name}</span></td><td>${rsd(c.items)}</td><td>${dec(c.ipo)}</td><td>${rsd(c.aip)}</td><td>${rsd(c.daily)}</td><td>${rsd(c.prev)}</td></tr>`).join('')+
+    `</tbody><tfoot><tr><td>Total</td><td>${rsd(T.items)}</td><td>${dec(T.ipo)}</td><td>${rsd(T.aip)}</td><td>${rsd(T.daily)}</td><td>${rsd(T.prev)}</td></tr></tfoot>`;
+  // hours
+  const perDay = R.hr.map(v=>div(v,R.days)); const maxH = Math.max(...R.hr,1);
+  const ranked = R.hr.map((v,i)=>({v,i})).filter(x=>x.v>0).sort((a,b)=>b.v-a.v);
+  const peak = new Set(ranked.slice(0,3).map(x=>x.i)), dead = new Set(ranked.length>6?ranked.slice(-3).map(x=>x.i):[]);
+  $('hours').innerHTML = R.hr.map((v,i)=>`<div class="hcol"><div class="hbar ${peak.has(i)?'peak':dead.has(i)?'dead':''}" style="height:${v/maxH*100}%"><span class="hval">${kShort(perDay[i])}</span></div></div>`).join('');
+  $('hlabels').innerHTML = HOURS.map(h=>`<span>${h}h</span>`).join('');
+  const cov = div(R.hrSum,T.rev)*100, slotName = i => HOURS[i]+'–'+(+HOURS[i]+1)+'h';
+  $('hourNote').innerHTML = R.hrSum ? `Satni unos pokriva <b>${pct(cov)}</b> ukupnog prihoda. ${Math.abs(cov-100)>2?'<span class="warnline">Razlika od Total Revenue: '+rsd(T.rev-R.hrSum)+' RSD.</span> ':''}Peak: ${[...peak].sort((a,b)=>a-b).map(slotName).join(', ')}${dead.size?' · Dead: '+[...dead].sort((a,b)=>a-b).map(slotName).join(', '):''}.` : 'Unesi promet po satu u „Unos prodaje → B“.';
+  const maxDp = Math.max(...R.dp.map(d=>d.mix||0),1);
+  $('dayparts').innerHTML = R.dp.map(d=>`<div class="catrow" style="grid-template-columns:92px 1fr 56px"><span><b>${d.name}</b><br><span class="fx">${d.range}h</span></span><span class="track"><i style="width:${(d.mix||0)/maxDp*100}%;background:var(--pink)"></i></span><span class="r">${pct(d.mix)}</span></div>`).join('');
+  $('hourStats').innerHTML = [['Sales per Hour','Revenue ÷ ukupno sati rada',rsd(T.sph)],['Avg Daily Sales','Revenue ÷ radni dani',rsd(T.daily)]]
+    .map(([k,f,v])=>`<div class="stat"><span class="k"><b>${k}</b><span class="fx">${f}</span></span><span class="v" style="font-size:22px">${v}</span></div>`).join('');
+  // categories
+  const maxC = Math.max(...R.cats.map(c=>Math.abs(c.mix)||0),1);
+  $('cats').innerHTML = R.cats.map(c=>`<div class="catrow"><b>${CATNAME[c.k]}</b><span class="track"><i style="width:${Math.max(0,c.mix||0)/maxC*100}%;background:${col(CATCOL[c.k])}"></i></span><span class="r">${pct(c.mix)} · ${kShort(c.rev)}</span></div>`+
+     c.grps.filter(g=>g.rev>0).sort((a,b)=>b.rev-a.rev).map(g=>`<div class="catrow sub"><span class="muted">${g.g}</span><span class="track"><i style="width:${(g.mix||0)/maxC*100}%;background:${col(CATCOL[c.k])};opacity:.55"></i></span><span class="r muted">${pct(g.mix)}</span></div>`).join('')).join('');
+  const other = T.rev - R.itRev;
+  $('catNote').innerHTML = !R.itQty ? 'Unesi prodate količine u „Unos prodaje → C“.' :
+    other<0 ? `<span class="warnline">Zbir artikala (${rsd(R.itRev)} RSD) je veći od Total Revenue za ${rsd(-other)} RSD.</span> Proveri količine ili prihod po kanalima.` :
+    '„Ostalo“ je razlika između Total Revenue i zbira artikala po cenama sa jelovnika: popusti, drugačije cene na platformama, ketering paketi.';
+  // items
+  let rows = R.it.filter(i=>i.q>0).sort((a,b)=> sortBy==='rev'? b.rev-a.rev : b.q-a.q);
+  if(!showAll) rows = rows.slice(0,15);
+  $('itemTable').innerHTML = `<thead><tr><th>#</th><th class="l">Artikal</th><th>Kategorija</th><th>Količina</th><th>Cena</th><th>Item Revenue</th><th>Sales Mix %</th><th>Qty Mix %</th></tr></thead><tbody>`+
+    (rows.length? rows.map((i,n)=>`<tr><td class="muted">${n+1}</td><td class="item"><b>${esc(i.name)}</b> <span class="muted" style="font-size:11.5px">${esc(i.grp)}</span></td><td>${CATNAME[i.cat]}</td><td>${nfq.format(i.q)}${i.unit!=='kom'?' '+i.unit:''}</td><td>${rsd(i.price)}</td><td>${rsd(i.rev)}</td><td>${pct(i.mix)}</td><td>${pct(i.qmix)}</td></tr>`).join('')
+      : `<tr><td colspan="8" class="l muted">Još nema unetih količina.</td></tr>`)+
+    `</tbody><tfoot><tr><td></td><td class="l">Svi artikli</td><td></td><td>${nfq.format(R.itQty)}</td><td></td><td>${rsd(R.itRev)}</td><td>${pct(div(R.itRev,T.rev)*100)}</td><td>${R.itQty?'100,0%':'—'}</td></tr></tfoot>`;
+}
+
+function renderFood(R){
+  const {F,T} = R;
+  const fcS = st(F.actFcPct,33,37), vS = st(div(F.var,T.rev)*100,1,2.5);
+  $('foodKpis').innerHTML = kpiHTML([
+    {hero:1,l:'Theoretical COGS',v:R$(F.theo),s:'Σ prodato × receptura'},
+    {l:'Actual COGS',v:R$(F.act),s:'lager + nabavka − lager'},
+    {l:'Variance',v:sgn(F.var),vc:F.var>0?'vneg':'vpos',s:F.var>0?'nepovoljno: fali robe':'povoljno',p:pill(vS,STL[vS])},
+    {l:'Theor. Food Cost %',v:pct(F.theoFcPct),s:'hrana ÷ food revenue'},
+    {l:'Actual Food Cost %',v:pct(F.actFcPct),s:'hrana ÷ food revenue',p:pill(fcS,STL[fcS])},
+    {l:'Beverage Cost %',v:pct(F.actBcPct),s:'teorijski '+pct(F.theoBcPct)},
+  ]);
+  const max = Math.max(F.theo,F.act,1);
+  wfRows($('varBars'), [
+    {l:'Teorijski — hrana', from:0,to:F.theoFood,c:'var(--c1)',v:rsd(F.theoFood)},
+    {l:'Stvarni — hrana', from:0,to:F.actFood,c:'var(--pink)',v:rsd(F.actFood)},
+    {l:'Teorijski — piće', from:0,to:F.theoBev,c:'var(--c4)',v:rsd(F.theoBev)},
+    {l:'Stvarni — piće', from:0,to:F.actBev,c:'var(--c4)',v:rsd(F.actBev)},
+    {l:'Variance ukupno', from:0,to:Math.abs(F.var),c:F.var>0?'var(--neg)':'var(--pos)',v:sgn(F.var),vc:F.var>0?'vneg':'vpos',total:true},
+  ], max);
+  $('varInsight').innerHTML = !F.hasActual ? 'Unesi početni lager, nabavku i završni lager da dobiješ stvarni COGS.' :
+    F.var>0 ? `Prema prodaji i recepturama trebalo je da potrošimo <b>${rsd(F.theo)} RSD</b>, a stvarno je potrošeno <b>${rsd(F.act)} RSD</b>. Treba pronaći <b>${rsd(F.var)} RSD</b>: ${rsd(F.varFood)} u hrani, ${rsd(F.varBev)} u piću. Prvi korak je modul Waste.` :
+    `Stvarni trošak je ${rsd(-F.var)} RSD ispod teorijskog. Proveri da li su recepture ažurne i da li je popis lagera tačan.`;
+  $('foodRevNote').innerHTML = (+S.foodRevOverride>0) ? `Koristi se ručno uneti food revenue. Automatski bi bio ${rsd(F.foodRevAuto)} RSD.` :
+    `Food revenue = Total Revenue × udeo hrane i deserata u prodaji artikala = <b>${rsd(F.foodRev)} RSD</b>. Beverage revenue = ${rsd(F.bevRev)} RSD.`;
+  // recipe editor totals
+  const it = R.it.find(i=>i.id===recipeItem);
+  if(it){ const s=recipeSum(it.id); $('recipeTotal').innerHTML = s!=null ? `${rsd(s)} <small style="font-size:18px;color:var(--muted)">RSD · ${pct(div(s,it.price)*100)}</small>` : `<span class="muted" style="font-size:20px">nema recepture</span>`;
+    (S.recipes[it.id]||[]).forEach((l,k)=>{ const c=$('rl-'+k); if(c) c.textContent = rsd((+l.q||0)*(+l.p||0)); }); }
+}
+
+function renderWaste(R){
+  const {W,F} = R;
+  const wS = st(W.pct,3,5), iS = st(W.days,10,14);
+  $('wasteKpis').innerHTML = kpiHTML([
+    {hero:1,l:'Waste Cost',v:R$(W.total),s:`${W.rows.length} evidentiranih otpisa`},
+    {l:'Waste %',v:pct(W.pct),s:'waste ÷ COGS',p:pill(wS,STL[wS])},
+    {l:'Waste vs variance',v:pct(W.ofVar),s:'koliko razlike objašnjava otpis'},
+    {l:'Average Inventory',v:R$(W.avgInv),s:'(početni + završni) ÷ 2'},
+    {l:'Inventory Days',v:isFinite(W.days)?nf1.format(W.days)+'<small>dana</small>':'—',s:'avg lager ÷ COGS × dani',p:pill(iS,STL[iS])},
+  ]);
+  const mx = Math.max(...W.byReason.map(r=>r.v),1);
+  $('wasteReasons').innerHTML = W.byReason.map(r=>`<div class="catrow"><span><b>${WASTE_SR[r.r]}</b><br><span class="fx">${r.r}</span></span><span class="track"><i style="width:${r.v/mx*100}%;background:var(--c2)"></i></span><span class="r">${rsd(r.v)} · ${pct(div(r.v,W.total)*100)}</span></div>`).join('');
+  const top = [...W.byReason].sort((a,b)=>b.v-a.v)[0];
+  const unexplained = F.var - W.total;
+  $('wasteInsight').innerHTML = !W.total ? 'Unesi otpise ispod da vidiš gde odlazi roba.' :
+    `Najviše se gubi na <b>${WASTE_SR[top.r].toLowerCase()}</b> (${rsd(top.v)} RSD). ` + (F.var>0 ? (unexplained>0 ? `Evidentirani otpis objašnjava ${pct(W.ofVar)} varijanse. Preostalih <b>${rsd(unexplained)} RSD</b> nije evidentirano: porcionisanje, besplatni obroci osoblja, krađa ili greške u popisu.` : 'Evidentirani otpis pokriva celu varijansu iz Food Cost modula.') : '');
+  $('invStats').innerHTML = [
+    ['Ukupno','avg lager '+kShort(W.avgInv)+' · COGS '+kShort(F.cogs), W.days],
+    ['Hrana','avg lager '+kShort(W.avgFood), W.daysFood],
+    ['Piće','avg lager '+kShort(W.avgBev), W.daysBev],
+  ].map(([k,f,v])=>`<div class="stat"><span class="k"><b>${k}</b><span class="fx">${f}</span></span><span class="v">${isFinite(v)?nf1.format(v)+' <small class="muted" style="font-size:14px">dana</small>':'—'}</span></div>`).join('');
+  $('invInsight').innerHTML = isFinite(W.daysFood) ? `Hrana stoji ${nf1.format(W.daysFood)} dana, piće ${nf1.format(W.daysBev)} dana. Na lageru je vezano <b>${rsd(W.close)} RSD</b>. Za meso i sveže namirnice cilj je nekoliko dana; dug lager pića je normalan, ali i dalje vezuje novac.` : 'Unesi lager u modulu Food Cost.';
+  W.rows.forEach((w,k)=>{ const c=$('wv-'+k); if(c) c.textContent=rsd(w.val); });
+}
+
+function renderLabor(R){
+  const {L,T} = R;
+  const lS = st(L.pct,30,34);
+  $('laborKpis').innerHTML = kpiHTML([
+    {hero:1,l:'Labor Cost %',v:pct(L.pct),s:'labor ÷ revenue',p:pill(lS,STL[lS])},
+    {l:'Total Labor Cost',v:R$(L.cost),s:`${nf0.format(L.hours)} radnih sati`},
+    {l:'Revenue per Labor Hour',v:R$(L.rplh),s:'revenue ÷ radni sati'},
+    {l:'Trošak radnog sata',v:R$(L.cph),s:'labor ÷ radni sati'},
+  ]);
+  const vals = L.slot.map(v=>isFinite(v)?v:0); const mx = Math.max(...vals,1);
+  const rk = vals.map((v,i)=>({v,i})).filter(x=>x.v>0).sort((a,b)=>a.v-b.v); const low = new Set(rk.slice(0,3).map(x=>x.i));
+  $('splh').innerHTML = vals.map((v,i)=>`<div class="hcol"><div class="hbar ${low.has(i)?'low':''}" style="height:${v/mx*100}%"><span class="hval">${kShort(v)}</span></div></div>`).join('') +
+    (isFinite(L.slotAvg)?`<div class="avgline" style="bottom:${L.slotAvg/mx*(200-22)}px"><span>prosek ${kShort(L.slotAvg)}</span></div>`:'');
+  $('splhLabels').innerHTML = HOURS.map(h=>`<span>${h}h</span>`).join('');
+  const lowList=[...low].sort((a,b)=>a-b);
+  const slotName = i => HOURS[i]+'–'+(+HOURS[i]+1)+'h';
+  $('splhInsight').innerHTML = lowList.length ? `Najslabije iskorišćeni sati: <b>${lowList.map(slotName).join(', ')}</b>. U ${slotName(rk[0].i)} je u smeni ${L.staff[rk[0].i]} ljudi, a svaki njihov sat donosi ${rsd(rk[0].v)} RSD prodaje, naspram proseka od ${rsd(L.slotAvg)} RSD. Tu je prvi kandidat za pomeranje smena.` : 'Unesi broj ljudi u smeni po satu i promet po satu (Unos prodaje → B).';
+  L.rows.forEach((r,k)=>{ const a=$('lp-'+k); if(a){ a.textContent=pct(r.pct); $('lh-'+k).textContent=rsd(r.cph); $('ls-'+k).textContent=pct(r.share);} });
+  const tf=$('laborFoot'); if(tf) tf.innerHTML = `<td>Total</td><td>${rsd(L.cost)}</td><td>${nf0.format(L.hours)}</td><td>${pct(L.pct)}</td><td>${rsd(L.cph)}</td><td>100,0%</td><td></td>`;
+  const sf=$('staffFoot'); if(sf) sf.innerHTML = `<td class="lbl">RSD / radni sat</td>${vals.map((v,i)=>`<td class="${low.has(i)?'vneg':''}">${v?rsd(v):'—'}</td>`).join('')}`;
+}
+
+function renderMargin(R){
+  const {M,T,F,L} = R;
+  const pS = st(M.primePct,62,66);
+  $('marginKpis').innerHTML = kpiHTML([
+    {hero:1,l:'Prime Cost %',v:pct(M.primePct),s:'(COGS + Labor) ÷ Revenue',p:pill(pS,STL[pS])},
+    {l:'Prime Cost',v:R$(M.prime),s:`COGS ${kShort(F.cogs)} + Labor ${kShort(L.cost)}`},
+    {l:'Contribution Margin',v:R$(M.cm),s:'revenue − varijabilni troškovi'},
+    {l:'CM %',v:pct(M.cmPct),s:'CM ÷ Revenue'},
+    {l:'Troškovi kanala',v:R$(M.chanCost),s:'provizije, ambalaža, dostava, kartice'},
+  ]);
+  const mx = Math.max(...M.ch.map(c=>c.rev),1);
+  $('cmBars').innerHTML = M.ch.map(c=>`<div class="cmrow"><span class="ch"><i class="dot" style="background:${col(c.c)}"></i>${c.name}</span>
+    <span class="cmtrack"><span class="a" style="width:${c.rev/mx*100}%"></span><span class="b" style="width:${Math.max(0,c.cm)/mx*100}%;background:${col(c.c)}"></span></span>
+    <span class="r" style="text-align:right;font-variant-numeric:tabular-nums"><b>${pct(c.cmPct)}</b><br><span class="fx">${kShort(c.cm)} od ${kShort(c.rev)}</span></span></div>`).join('');
+  $('cmTable').innerHTML = `<thead><tr><th>Kanal</th><th>Revenue</th><th>Food (COGS)</th><th>Provizija</th><th>Ambalaža</th><th>Dostava</th><th>Kartice</th>${S.laborFixed?'':'<th>Labor</th>'}<th>Contribution</th><th>CM %</th><th>CM / porudžbina</th><th>Udeo u CM</th></tr></thead><tbody>`+
+    M.ch.map(c=>`<tr><td><span class="ch"><i class="dot" style="background:${col(c.c)}"></i>${c.name}</span></td><td>${rsd(c.rev)}</td><td>${rsd(c.food)}</td><td>${rsd(c.comm)}</td><td>${rsd(c.pack)}</td><td>${rsd(c.deliv)}</td><td>${rsd(c.fee)}</td>${S.laborFixed?'':`<td>${rsd(c.lab)}</td>`}<td><b>${rsd(c.cm)}</b></td><td>${pct(c.cmPct)}</td><td>${rsd(c.cmOrder)}</td><td>${pct(div(c.cm,M.cm)*100)}</td></tr>`).join('')+
+    `</tbody><tfoot><tr><td>Total</td><td>${rsd(T.rev)}</td><td>${rsd(M.ch.reduce((a,b)=>a+b.food,0))}</td><td>${rsd(M.ch.reduce((a,b)=>a+b.comm,0))}</td><td>${rsd(M.ch.reduce((a,b)=>a+b.pack,0))}</td><td>${rsd(M.ch.reduce((a,b)=>a+b.deliv,0))}</td><td>${rsd(M.ch.reduce((a,b)=>a+b.fee,0))}</td>${S.laborFixed?'':`<td>${rsd(M.ch.reduce((a,b)=>a+b.lab,0))}</td>`}<td>${rsd(M.cm)}</td><td>${pct(M.cmPct)}</td><td>${rsd(div(M.cm,T.orders))}</td><td>100,0%</td></tr></tfoot>`;
+  const byRev=[...M.ch].sort((a,b)=>b.rev-a.rev), byPct=[...M.ch].filter(c=>c.rev>0).sort((a,b)=>a.cmPct-b.cmPct);
+  const plat = M.ch.filter(c=>['wolt','glovo','misterd'].includes(c.id)); const platRev=plat.reduce((a,b)=>a+b.rev,0), platCm=plat.reduce((a,b)=>a+b.cm,0);
+  $('cmInsight').innerHTML = byPct.length ? `Platforme (Wolt, Glovo, Mister D) prave ${pct(div(platRev,T.rev)*100)} prometa, a ${pct(div(platCm,M.cm)*100)} contributiona. Najniža marža je na kanalu <b>${byPct[0].name}</b> (${pct(byPct[0].cmPct)}), najviša na <b>${byPct[byPct.length-1].name}</b> (${pct(byPct[byPct.length-1].cmPct)}).` : '';
+  // single order
+  const c = M.ch.find(x=>x.id===orderCh) || M.ch[0];
+  const o = x => div(x, c.orders);
+  const aov = c.aov; let run=aov; const rows=[{l:'Porudžbina (AOV)',from:0,to:aov,c:col(c.c),v:rsd(aov),total:true}];
+  [['Hrana i piće',o(c.food)],['Provizija',o(c.comm)],['Ambalaža',o(c.pack)],['Dostava',o(c.deliv)],['Kartice',o(c.fee)]].concat(S.laborFixed?[]:[['Labor',o(c.lab)]])
+    .forEach(([l,a])=>{ if(a>0){ rows.push({l,from:run-a,to:run,c:'var(--dead)',v:'−'+rsd(a)}); run-=a; } });
+  rows.push({l:'Contribution',from:0,to:Math.max(0,run),c:run>=0?'var(--pos)':'var(--neg)',v:`${rsd(run)} · ${pct(div(run,aov)*100)}`,vc:run>=0?'vpos':'vneg',total:true});
+  if(isFinite(aov)) wfRows($('orderWf'), rows, aov||1); else $('orderWf').innerHTML='<p class="note">Nema porudžbina za ovaj kanal.</p>';
+}
+
+function renderProfit(R){
+  const {T,F,L,M,P} = R;
+  const oS = st(P.opPct,10,5,true);
+  $('profitKpis').innerHTML = kpiHTML([
+    {hero:1,l:'Operating Profit',v:R$(P.op),vc:P.op<0?'vneg':'',s:'revenue − svi operativni troškovi'},
+    {l:'OP Margin',v:pct(P.opPct),s:'OP ÷ Revenue',p:pill(oS,STL[oS])},
+    {l:'Break-Even Revenue',v:R$(P.bep),s:'fiksni ÷ CM %'},
+    {l:'Daily Break-Even',v:R$(P.dbep),s:'BEP ÷ radni dani'},
+    {l:'Margin of Safety',v:pct(P.safety),vc:P.safety<0?'vneg':'vpos',s:'koliko prodaja sme da padne'},
+  ]);
+  wfRows($('wfProfit'), pnlRows(R).map(r=>({...r, v: r.total? `${rsd(r.amount)} · ${pct(div(r.amount,T.rev)*100)}` : `−${rsd(r.amount)} · ${pct(div(r.amount,T.rev)*100)}`, vc: r.total&&r.l!=='Revenue'? (r.amount>=0?'vpos':'vneg'):''})), T.rev||1);
+  $('bepStats').innerHTML = [
+    ['Fiksni troškovi', S.laborFixed?'fiksni OpEx + labor':'fiksni OpEx', rsd(P.fixed)],
+    ['Contribution Margin %','iz modula Marža', pct(M.cmPct)],
+    ['Break-Even Revenue','fiksni ÷ CM %', rsd(P.bep)],
+    ['Daily Break-Even','÷ '+R.days+' radnih dana', rsd(P.dbep)],
+  ].map(([k,f,v])=>`<div class="stat"><span class="k"><b>${k}</b><span class="fx">${f}</span></span><span class="v">${v}</span></div>`).join('');
+  $('bepInsight').innerHTML = isFinite(P.bep) ? `Da bi bio na nuli, restoran mora da napravi <b>${rsd(P.bep)} RSD</b> mesečno, odnosno <b>${rsd(P.dbep)} RSD</b> dnevno. Trenutni promet je ${P.safety>=0?`${pct(P.safety)} iznad te granice`:`${pct(-P.safety)} ispod te granice`}. Svaki dinar prodaje iznad break-evena donosi ${rsd(M.cmPct)} para profita na 100 RSD.` : 'Unesi fiksne troškove i troškove kanala.';
+  $('laborFixed').checked = !!S.laborFixed;
+  const tf=$('fixedFoot'); if(tf) tf.innerHTML = `<td>Total</td><td>${rsd(P.fixedOpex)}</td><td>${pct(div(P.fixedOpex,T.rev)*100)}</td><td></td>`;
+  S.fixed.forEach((f,k)=>{ const c=$('fp-'+k); if(c) c.textContent = pct(div(+f.v||0,T.rev)*100); });
+}
+
+/* =========================== FORMULAS =========================== */
+function renderFormulas(R){
+  const {ch,T,F,W,L,M,P} = R, w = ch.find(c=>c.id==='wolt'), ih=ch[0], mw=M.ch.find(c=>c.id==='wolt');
+  const tp=[...R.it].sort((a,b)=>b.rev-a.rev)[0];
+  const G = [
+   ['1 · SALES — Koliko i gde prodajemo?', [
+    ['Total Revenue','In-House + Takeaway + Catering + Wolt + Glovo + Mister D', `${ch.map(c=>kShort(c.rev)).join(' + ')} = <b>${rsd(T.rev)} RSD</b>`],
+    ['Revenue by Channel','Channel Revenue = Σ računa / porudžbina kanala', ch.map(c=>`${c.name} ${kShort(c.rev)}`).join(' · ')],
+    ['Sales Mix %','Channel Revenue ÷ Total Revenue × 100', `Wolt: ${rsd(w.rev)} ÷ ${rsd(T.rev)} × 100 = <b>${pct(w.salesMix)}</b>`],
+    ['Total Orders','Σ računa i porudžbina svih kanala', `<b>${rsd(T.orders)}</b>`],
+    ['AOV','Revenue ÷ Orders', `Wolt: ${rsd(w.rev)} ÷ ${rsd(w.orders)} = <b>${rsd(w.aov)} RSD</b> · ukupno <b>${rsd(T.aov)} RSD</b>`],
+    ['Order Mix %','Orders kanala ÷ Total Orders × 100', `Wolt <b>${pct(w.orderMix)}</b> porudžbina vs ${pct(w.salesMix)} prihoda`],
+    ['Revenue per Guest','In-House Revenue ÷ gosti · Average Check = Revenue ÷ računi', `<b>${rsd(T.rpg)} RSD/gost</b> · <b>${rsd(T.avgCheck)} RSD/račun</b>`],
+    ['Guests per Check','gosti ÷ In-House računi', `${rsd(ih.guests)} ÷ ${rsd(ih.orders)} = <b>${dec(T.gpc)}</b>`],
+    ['Items per Order','artikli ÷ porudžbine', `<b>${dec(T.ipo)}</b>`],
+    ['Average Item Price','Revenue ÷ artikli', `<b>${rsd(T.aip)} RSD</b>`],
+    ['Sales Growth %','(Current − Previous) ÷ Previous × 100', `(${rsd(T.rev)} − ${rsd(T.prev)}) ÷ ${rsd(T.prev)} × 100 = <b>${sgnPct(T.growth)}</b>`],
+    ['Sales per Day','Revenue ÷ radni dani', `<b>${rsd(T.daily)} RSD/dan</b>`],
+    ['Sales per Operating Hour','Revenue ÷ sati rada', `${rsd(T.rev)} ÷ (${S.days} × ${S.hpd} h) = <b>${rsd(T.sph)} RSD/h</b>`],
+    ['Sales by Daypart','Revenue u periodu ÷ Total Revenue × 100', R.dp.map(d=>`${d.name} <b>${pct(d.mix)}</b>`).join(' · ')],
+    ['Sales by Category','Category Revenue ÷ Total Revenue × 100', R.cats.map(c=>`${CATNAME[c.k]} <b>${pct(c.mix)}</b>`).join(' · ')],
+    ['Sales by Item','Qty × Price · Item Mix % · Qty Mix %', tp&&tp.q? `${esc(tp.name)}: <b>${rsd(tp.rev)} RSD</b> · ${pct(tp.mix)} prihoda · ${pct(tp.qmix)} količine`:'Nema količina.'],
+   ]],
+   ['2 · FOOD COST & COGS — Koliko roba košta?', [
+    ['Ingredient Cost','Quantity Used × Price per Unit', (()=>{const l=(S.recipes.m1||[])[0]; return l?`${esc(l.n)}: ${nfq.format(l.q)} × ${rsd(l.p)} = <b>${rsd(l.q*l.p)} RSD</b>`:'—';})()],
+    ['Recipe Cost','Σ troškova svih sastojaka u porciji', (()=>{const s=recipeSum('m1'); return s!=null?`Brisket obrok = <b>${rsd(s)} RSD</b> (${pct(s/1830*100)} od cene)`:'—';})()],
+    ['Theoretical COGS','Σ (Quantity Sold × Recipe Cost)', `<b>${rsd(F.theo)} RSD</b> (hrana ${kShort(F.theoFood)}, piće ${kShort(F.theoBev)})`],
+    ['Theoretical Food Cost %','Theoretical COGS ÷ Food Revenue × 100', `${rsd(F.theoFood)} ÷ ${rsd(F.foodRev)} × 100 = <b>${pct(F.theoFcPct)}</b>`],
+    ['Actual COGS','Opening Inventory + Purchases − Closing Inventory', `Hrana: ${rsd(S.inv.food.open)} + ${rsd(S.inv.food.buy)} − ${rsd(S.inv.food.close)} = <b>${rsd(F.actFood)} RSD</b>`],
+    ['Actual Food Cost %','COGS ÷ Food Revenue × 100', `${rsd(F.actFood)} ÷ ${rsd(F.foodRev)} × 100 = <b>${pct(F.actFcPct)}</b>`],
+    ['Food Cost Variance','Actual COGS − Theoretical COGS', `${rsd(F.act)} − ${rsd(F.theo)} = <b>${sgn(F.var)} RSD</b>`],
+   ]],
+   ['3 · WASTE & INVENTORY — Gde gubimo robu?', [
+    ['Waste Cost','Quantity Wasted × Cost', `Σ otpisa = <b>${rsd(W.total)} RSD</b>`],
+    ['Waste %','Waste Cost ÷ COGS × 100', `${rsd(W.total)} ÷ ${rsd(F.cogs)} × 100 = <b>${pct(W.pct)}</b>`],
+    ['Average Inventory','(Opening + Closing) ÷ 2', `(${rsd(W.open)} + ${rsd(W.close)}) ÷ 2 = <b>${rsd(W.avgInv)} RSD</b>`],
+    ['Inventory Days','Average Inventory ÷ COGS × broj dana', `${rsd(W.avgInv)} ÷ ${rsd(F.cogs)} × ${S.days} = <b>${isFinite(W.days)?nf1.format(W.days):'—'} dana</b>`],
+   ]],
+   ['4 · LABOR — Koliko koštaju ljudi?', [
+    ['Labor Cost %','Total Labor Cost ÷ Revenue × 100', `${rsd(L.cost)} ÷ ${rsd(T.rev)} × 100 = <b>${pct(L.pct)}</b>`],
+    ['Revenue per Labor Hour','Revenue ÷ Total Labor Hours', `${rsd(T.rev)} ÷ ${nf0.format(L.hours)} = <b>${rsd(L.rplh)} RSD</b>`],
+   ]],
+   ['5 · CONTRIBUTION & PRIME COST — Šta ostavlja operacija?', [
+    ['Prime Cost','COGS + Labor', `${rsd(F.cogs)} + ${rsd(L.cost)} = <b>${rsd(M.prime)} RSD</b>`],
+    ['Prime Cost %','(COGS + Labor) ÷ Revenue × 100', `<b>${pct(M.primePct)}</b>`],
+    ['Contribution Margin','Revenue − Variable Costs', mw&&isFinite(mw.aov)?`Wolt porudžbina: ${rsd(mw.aov)} − ${rsd(div(mw.varc,mw.orders))} = <b>${rsd(mw.cmOrder)} RSD</b>`:'—'],
+    ['Contribution Margin %','CM ÷ Revenue × 100', `Wolt <b>${pct(mw?.cmPct)}</b> · ukupno <b>${pct(M.cmPct)}</b>`],
+   ]],
+   ['6 · PROFIT & BREAK-EVEN — Koliko zarađujemo?', [
+    ['Operating Profit','Revenue − COGS − Labor − Other OpEx', `${rsd(T.rev)} − ${rsd(F.cogs)} − ${rsd(L.cost)} − ${rsd(P.otherOpex)} = <b>${rsd(P.op)} RSD</b>`],
+    ['Operating Profit Margin','Operating Profit ÷ Revenue × 100', `<b>${pct(P.opPct)}</b>`],
+    ['Break-Even Revenue','Fixed Costs ÷ Contribution Margin %', `${rsd(P.fixed)} ÷ ${nf2.format(M.cmPct/100)} = <b>${rsd(P.bep)} RSD</b>`],
+    ['Daily Break-Even','Monthly Break-Even ÷ Operating Days', `${rsd(P.bep)} ÷ ${S.days} = <b>${rsd(P.dbep)} RSD</b>`],
+   ]],
+  ];
+  let n=0;
+  $('formulas').innerHTML = G.map(([h,list])=>`<div class="fgroup"><h2>${h}</h2><ol class="formulas">${list.map(([t,eq,live])=>`<li><h3><span class="n">${String(++n).padStart(2,'0')}</span>${t}</h3><div class="eq">${eq}</div><div class="live">${live}</div></li>`).join('')}</ol></div>`).join('');
+}
+
+/* =========================== INPUTS =========================== */
+// generic input: data-path "a.b.c", data-k "num"|"dec"|"text"
+function inp(path, val, kind='num', extra=''){
+  const id='f-'+path.replace(/\./g,'-');
+  const v = kind==='text' ? esc(val) : fmtIn(+val||0, kind==='dec');
+  return `<input class="in ${kind==='text'?'t':'r'}" id="${id}" data-path="${path}" data-k="${kind}" ${kind==='text'?'type="text"':`inputmode="${kind==='dec'?'decimal':'numeric'}" type="text" placeholder="0"`} value="${v}" ${extra}>`;
+}
+function setPath(path, v){ const ks=path.split('.'); let o=S; for(let i=0;i<ks.length-1;i++){ if(o[ks[i]]==null) o[ks[i]]={}; o=o[ks[i]]; } o[ks[ks.length-1]]=v; }
+
+function buildInputs(){
+  syncLabels();
+  const [ky,km]=S.monthKey.split('-').map(Number);
+  $('mSel').innerHTML = MONTHS_SR.map((n,i)=>`<option value="${i+1}" ${i+1===km?'selected':''}>${n}</option>`).join('');
+  const yrs=[]; for(let y=Math.min(2024,ky);y<=Math.max(2030,ky);y++) yrs.push(y);
+  $('ySel').innerHTML = yrs.map(y=>`<option ${y===ky?'selected':''}>${y}</option>`).join('');
+  $('prevLbl').textContent = S.prevPeriod;
+  $('days').value=S.days; $('hpd').value=S.hpd;
+  $('today').value = fmtIn(S.today); $('today').dataset.path='today'; $('today').dataset.k='num';
+  $('f-foodRevOverride').value = fmtIn(S.foodRevOverride); $('f-foodRevOverride').dataset.k='num';
+  // sales entry
+  $('chInput').innerHTML = `<thead><tr><th>Kanal</th><th>Revenue (RSD)</th><th>Porudžbine / računi</th><th>Prodati artikli</th><th>Gosti</th><th>Revenue prethodni period</th></tr></thead><tbody>`+
+    CH.map(c=>`<tr><td><span class="ch"><i class="dot" style="background:var(${c.c})"></i>${c.name}</span></td>
+      <td>${inp(`ch.${c.id}.rev`,S.ch[c.id].rev)}</td><td>${inp(`ch.${c.id}.orders`,S.ch[c.id].orders)}</td><td>${inp(`ch.${c.id}.items`,S.ch[c.id].items)}</td>
+      <td>${c.id==='inhouse'?inp(`ch.${c.id}.guests`,S.ch[c.id].guests):'<span class="muted">—</span>'}</td><td>${inp(`ch.${c.id}.prev`,S.ch[c.id].prev)}</td></tr>`).join('')+`</tbody>`;
+  $('hourInput').innerHTML = `<thead><tr><th>Sat</th>${HOURS.map(h=>`<th>${h}–${+h+1}h</th>`).join('')}</tr></thead><tbody><tr><td class="lbl">RSD</td>${HOURS.map((h,i)=>`<td>${inp(`hourly.${i}`,S.hourly[i],'num','style="width:96px"')}</td>`).join('')}</tr></tbody>`;
+  $('menuInput').innerHTML = MENU.map((g,gi)=>`<details class="grp" ${gi<2?'open':''}><summary><h3>${g.grp}</h3><span class="fx" id="grpsum-${gi}"></span></summary><div class="tw"><table><thead><tr><th>Artikal</th><th>Cena (RSD)</th><th>Količina</th><th>Item Revenue</th><th>Sales Mix %</th><th>Qty Mix %</th></tr></thead><tbody>`+
+    g.items.map(([id,name,det,price,unit])=>`<tr><td class="item"><b>${esc(name)}</b>${det?`<small>${esc(det)}</small>`:''}</td><td>${rsd(price)}${unit?` / ${unit}`:''}</td><td>${inp(`qty.${id}`,S.qty[id],unit==='kg'?'dec':'num')}</td><td id="ir-${id}">—</td><td id="im-${id}">—</td><td id="iq-${id}">—</td></tr>`).join('')+
+    `</tbody></table></div></details>`).join('');
+  // food: inventory
+  $('invInput').innerHTML = `<thead><tr><th></th><th>Početni lager</th><th>Nabavka</th><th>Završni lager</th><th>COGS</th></tr></thead><tbody>`+
+    [['food','Hrana'],['bev','Piće']].map(([k,l])=>`<tr><td><b>${l}</b></td><td>${inp(`inv.${k}.open`,S.inv[k].open)}</td><td>${inp(`inv.${k}.buy`,S.inv[k].buy)}</td><td>${inp(`inv.${k}.close`,S.inv[k].close)}</td><td id="cogs-${k}">—</td></tr>`).join('')+`</tbody>`;
+  // food: recipe editor
+  $('recipeSel').innerHTML = MENU.filter(g=>isFood(g.cat)).map(g=>`<optgroup label="${esc(g.grp)}">${g.items.map(([id,name])=>`<option value="${id}" ${id===recipeItem?'selected':''}>${esc(name)}${S.recipes[id]?.length?' ●':''}</option>`).join('')}</optgroup>`).join('');
+  buildRecipe();
+  // food: recipe cost per item
+  $('rcInput').innerHTML = MENU.map((g,gi)=>`<details class="grp" ${gi<1?'open':''}><summary><h3>${g.grp}</h3><span class="fx" id="rcsum-${gi}"></span></summary><div class="tw"><table><thead><tr><th>Artikal</th><th>Cena</th><th>Recipe cost</th><th>Food cost %</th><th>Prodato</th><th>Theoretical COGS</th><th>Marža po porciji</th></tr></thead><tbody>`+
+    g.items.map(([id,name,det,price,unit])=>`<tr><td class="item"><b>${esc(name)}</b>${det?`<small>${esc(det)}</small>`:''}</td><td>${rsd(price)}</td><td>${inp(`recipeCost.${id}`,S.recipes[id]?.length?recipeSum(id):S.recipeCost[id],'num',S.recipes[id]?.length?'disabled title="Iz recepture"':'')}</td><td id="rf-${id}">—</td><td id="rq-${id}">—</td><td id="rt-${id}">—</td><td id="rm-${id}">—</td></tr>`).join('')+
+    `</tbody></table></div></details>`).join('');
+  // waste
+  $('wasteInput').innerHTML = `<thead><tr><th class="l">Šta je bačeno</th><th class="l">Razlog</th><th>Količina</th><th>Cena / jedinici</th><th>Waste Cost</th><th></th></tr></thead><tbody>`+
+    (S.waste.length? S.waste.map((w,k)=>`<tr><td>${inp(`waste.${k}.what`,w.what,'text')}</td><td><select class="in" id="f-waste-${k}-reason" data-path="waste.${k}.reason" data-k="text">${WASTE_REASONS.map(r=>`<option value="${r}" ${w.reason===r?'selected':''}>${WASTE_SR[r]} · ${r}</option>`).join('')}</select></td><td>${inp(`waste.${k}.qty`,w.qty,'dec')}</td><td>${inp(`waste.${k}.cost`,w.cost)}</td><td id="wv-${k}">—</td><td><button class="x" type="button" data-del="waste" data-i="${k}" aria-label="Obriši red">×</button></td></tr>`).join('')
+      : `<tr><td colspan="6" class="l muted">Još nema otpisa. Dodaj prvi red: šta, zašto, koliko i po kojoj ceni.</td></tr>`)+`</tbody>`;
+  // labor
+  $('laborInput').innerHTML = `<thead><tr><th class="l">Tim</th><th>Trošak (RSD)</th><th>Radni sati</th><th>% prometa</th><th>RSD / sat</th><th>Udeo u laboru</th><th></th></tr></thead><tbody>`+
+    S.labor.map((l,k)=>`<tr><td>${inp(`labor.${k}.role`,l.role,'text')}</td><td>${inp(`labor.${k}.cost`,l.cost)}</td><td>${inp(`labor.${k}.hours`,l.hours)}</td><td id="lp-${k}">—</td><td id="lh-${k}">—</td><td id="ls-${k}">—</td><td><button class="x" type="button" data-del="labor" data-i="${k}" aria-label="Obriši red">×</button></td></tr>`).join('')+
+    `</tbody><tfoot><tr id="laborFoot"></tr></tfoot>`;
+  $('staffInput').innerHTML = `<thead><tr><th>Ljudi u smeni</th>${HOURS.map(h=>`<th>${h}h</th>`).join('')}</tr></thead><tbody><tr><td class="lbl">Prosečno</td>${HOURS.map((h,i)=>`<td>${inp(`staff.${i}`,S.staff[i],'dec','style="width:64px"')}</td>`).join('')}</tr></tbody><tfoot><tr id="staffFoot"></tr></tfoot>`;
+  // margin: channel variable
+  $('chvInput').innerHTML = `<thead><tr><th>Kanal</th><th>Provizija platforme %</th><th>Ambalaža RSD / porudžbina</th><th>Dostava RSD / porudžbina</th><th>Kartice / naplata %</th></tr></thead><tbody>`+
+    CH.map(c=>`<tr><td><span class="ch"><i class="dot" style="background:var(${c.c})"></i>${c.name}</span></td><td>${inp(`chv.${c.id}.comm`,S.chv[c.id].comm,'dec')}</td><td>${inp(`chv.${c.id}.pack`,S.chv[c.id].pack)}</td><td>${inp(`chv.${c.id}.deliv`,S.chv[c.id].deliv)}</td><td>${inp(`chv.${c.id}.fee`,S.chv[c.id].fee,'dec')}</td></tr>`).join('')+`</tbody>`;
+  $('orderSel').innerHTML = CH.map(c=>`<option value="${c.id}" ${c.id===orderCh?'selected':''}>${c.name}</option>`).join('');
+  // profit: fixed
+  $('fixedInput').innerHTML = `<thead><tr><th class="l">Trošak</th><th>Mesečno (RSD)</th><th>% prometa</th><th></th></tr></thead><tbody>`+
+    S.fixed.map((f,k)=>`<tr><td>${inp(`fixed.${k}.n`,f.n,'text')}</td><td>${inp(`fixed.${k}.v`,f.v)}</td><td id="fp-${k}">—</td><td><button class="x" type="button" data-del="fixed" data-i="${k}" aria-label="Obriši red">×</button></td></tr>`).join('')+
+    `</tbody><tfoot><tr id="fixedFoot"></tr></tfoot>`;
+}
+function buildRecipe(){
+  const L = S.recipes[recipeItem]||[];
+  $('recipeTable').innerHTML = `<thead><tr><th class="l">Sastojak</th><th>Količina</th><th class="l">Jedinica</th><th>Cena / jedinici</th><th>Ingredient Cost</th><th></th></tr></thead><tbody>`+
+    (L.length? L.map((l,k)=>`<tr><td>${inp(`recipes.${recipeItem}.${k}.n`,l.n,'text')}</td><td>${inp(`recipes.${recipeItem}.${k}.q`,l.q,'dec','style="width:90px"')}</td>
+      <td><select class="in" id="f-recipes-${recipeItem}-${k}-u" data-path="recipes.${recipeItem}.${k}.u" data-k="text" style="min-width:80px">${['kg','l','kom'].map(u=>`<option ${l.u===u?'selected':''}>${u}</option>`).join('')}</select></td>
+      <td>${inp(`recipes.${recipeItem}.${k}.p`,l.p)}</td><td id="rl-${k}">—</td><td><button class="x" type="button" data-del="recipe" data-i="${k}" aria-label="Obriši sastojak">×</button></td></tr>`).join('')
+      : `<tr><td colspan="6" class="l muted">Ovo jelo nema recepturu. Dodaj sastojke ili unesi Recipe cost direktno u tabeli ispod.</td></tr>`)+`</tbody>`;
+}
+function updateComputedCells(R){
+  const {it,T,F} = R;
+  it.forEach(i=>{ const a=$('ir-'+i.id); if(a){ a.textContent = i.q?rsd(i.rev):'—'; $('im-'+i.id).textContent = i.q?pct(i.mix):'—'; $('iq-'+i.id).textContent = i.q?pct(i.qmix):'—'; }
+    const f=$('rf-'+i.id); if(f){ const s=st(i.fc, i.cat==='Food'?33:30, i.cat==='Food'?38:36); f.innerHTML = i.rc? `<span class="${s==='neg'?'vneg':s==='warn'?'vwarn':''}">${pct(i.fc)}</span>` : '—';
+      $('rq-'+i.id).textContent = i.q? nfq.format(i.q):'—'; $('rt-'+i.id).textContent = i.theo? rsd(i.theo):'—'; $('rm-'+i.id).textContent = i.rc? rsd(i.price-i.rc):'—';
+      const inpEl=$('f-recipeCost-'+i.id); if(inpEl && i.hasRecipe) inpEl.value = rsd(i.rc); } });
+  MENU.forEach((g,gi)=>{ const rows=it.filter(i=>i.grp===g.grp); const r=rows.reduce((a,b)=>a+b.rev,0); const el=$('grpsum-'+gi); if(el) el.textContent = r? rsd(r)+' RSD · '+pct(div(r,T.rev)*100):'';
+    const th=rows.reduce((a,b)=>a+b.theo,0); const e2=$('rcsum-'+gi); if(e2) e2.textContent = th? `COGS ${rsd(th)} · FC ${pct(div(th,r)*100)}`:''; });
+  const cf=$('cogs-food'); if(cf){ cf.textContent=rsd(F.actFood); $('cogs-bev').textContent=rsd(F.actBev); }
+}
+
+/* =========================== EVENTS =========================== */
+document.addEventListener('input', e=>{
+  const t=e.target, id=t.id; if(!id) return;
+  if(id==='days'||id==='hpd') S[id]=num(t.value)||0;
+  else if(t.dataset.path){ setPath(t.dataset.path, t.dataset.k==='text'? t.value : num(t.value, t.dataset.k==='dec')); }
+  else return;
+  render(); commit();
+});
+document.addEventListener('change', e=>{
+  const t=e.target;
+  if(t.tagName==='SELECT' && t.dataset.path){ setPath(t.dataset.path, t.value); render(); commit(); }
+});
+document.addEventListener('focusout', e=>{
+  const t=e.target; if(!t.dataset||!t.dataset.path||t.dataset.k==='text'||t.tagName!=='INPUT') return;
+  const v=num(t.value, t.dataset.k==='dec'); t.value = fmtIn(v, t.dataset.k==='dec');
+});
+document.addEventListener('click', e=>{
+  const b=e.target.closest('[data-del]'); if(!b) return;
+  const i=+b.dataset.i, k=b.dataset.del;
+  if(k==='recipe'){ S.recipes[recipeItem].splice(i,1); if(!S.recipes[recipeItem].length){ delete S.recipes[recipeItem]; } }
+  else S[k].splice(i,1);
+  buildInputs(); render(); commit();
+});
+$('recipeSel').onchange = e=>{ recipeItem=e.target.value; buildRecipe(); render(); };
+$('orderSel').onchange = e=>{ orderCh=e.target.value; render(); };
+$('addLine').onclick=()=>{ (S.recipes[recipeItem] ||= []).push({n:'',q:0,u:'kg',p:0}); buildInputs(); render(); commit(); const L=S.recipes[recipeItem]; $(`f-recipes-${recipeItem}-${L.length-1}-n`)?.focus(); };
+$('addWaste').onclick=()=>{ S.waste.push({what:'',reason:'Prep Waste',qty:0,cost:0}); buildInputs(); render(); commit(); $(`f-waste-${S.waste.length-1}-what`)?.focus(); };
+$('addLabor').onclick=()=>{ S.labor.push({role:'',cost:0,hours:0}); buildInputs(); render(); commit(); $(`f-labor-${S.labor.length-1}-role`)?.focus(); };
+$('addFixed').onclick=()=>{ S.fixed.push({n:'',v:0}); buildInputs(); render(); commit(); $(`f-fixed-${S.fixed.length-1}-n`)?.focus(); };
+$('laborFixed').onchange=e=>{ S.laborFixed=e.target.checked; render(); commit(); };
+
+const VIEWS=['pregled','sales','food','waste','labor','margin','profit','unos','arhiva','formule'];
+function show(view){
+  VIEWS.forEach(v=>{ $('view-'+v).hidden = v!==view; $('tab-'+v).setAttribute('aria-selected', v===view); });
+  try{ history.replaceState(null,'','#'+view); }catch(e){}
+  window.scrollTo({top:0});
+}
+document.querySelectorAll('nav.tabs [data-view]').forEach(b=>b.addEventListener('click',()=>show(b.dataset.view)));
+$('sortRev').onclick=()=>{sortBy='rev';$('sortRev').setAttribute('aria-pressed',true);$('sortQty').setAttribute('aria-pressed',false);render();};
+$('sortQty').onclick=()=>{sortBy='qty';$('sortQty').setAttribute('aria-pressed',true);$('sortRev').setAttribute('aria-pressed',false);render();};
+$('showAll').onclick=()=>{showAll=!showAll;$('showAll').setAttribute('aria-pressed',showAll);render();};
+$('copyBtn').onclick=async()=>{
+  const {ch,T}=calc();
+  const lines=[['Kanal','Revenue','Sales Mix %','Orders','Order Mix %','AOV','Growth %'].join('\t'),
+    ...ch.map(c=>[c.name,Math.round(c.rev),nf1.format(c.salesMix||0),c.orders,nf1.format(c.orderMix||0),Math.round(c.aov||0),isFinite(c.growth)?nf1.format(c.growth):''].join('\t')),
+    ['TOTAL',Math.round(T.rev),'100',T.orders,'100',Math.round(T.aov||0),isFinite(T.growth)?nf1.format(T.growth):''].join('\t')].join('\n');
+  try{ await navigator.clipboard.writeText(lines); toast('Tabela kopirana — nalepi u Excel ili Sheets'); }
+  catch(e){ toast('Kopiranje nije dozvoljeno u ovom prikazu'); }
+};
+let tt; function toast(m){ const el=$('toast'); el.textContent=m; el.hidden=false; clearTimeout(tt); tt=setTimeout(()=>el.hidden=true,2200); }
+
+
+/* =========================== SERVER STORAGE =========================== */
+const CLIENT = Math.random().toString(36).slice(2);
+let db=null, mode='init', archive=[], saveTimer=null, dirty=false, readOnly=false, lastSavedAt=null, inflight=null, again=false;
+const cap = async n => { try{ return (window.claude && window.claude.use) ? await window.claude.use(n) : null; }catch(e){ return null; } };
+function setStat(){
+  const el=$('saveStat'); if(!el) return;
+  const m = isSample ? 'sample' : mode;
+  const t = {init:['','Povezujem…'], local:['busy','Čuva se samo u ovom pregledaču'], saving:['busy','Čuvam…'],
+    saved:['ok', lastSavedAt?`Sačuvano ${pad2(lastSavedAt.getHours())}:${pad2(lastSavedAt.getMinutes())}`:'Sačuvano na serveru'],
+    error:['bad','Greška pri čuvanju, pokušavam ponovo'], readonly:['','Samo pregled — bez prava izmene'], sample:['','Primer — ne čuva se']}[m] || ['',''];
+  el.className='savestat '+t[0]; el.querySelector('span').textContent=t[1];
+}
+function commit(){
+  localSave();
+  if(isSample || !db || readOnly){ setStat(); return; }
+  dirty=true; mode='saving'; setStat();
+  clearTimeout(saveTimer); saveTimer=setTimeout(saveNow,1200);
+}
+function summarize(R){ const o={rev:R.T.rev,growth:R.T.growth,orders:R.T.orders,aov:R.T.aov,theo:R.F.theo,act:R.F.act,variance:R.F.var,fcPct:R.F.actFcPct,bcPct:R.F.actBcPct,
+  waste:R.W.total,wastePct:R.W.pct,invDays:R.W.days,labor:R.L.cost,laborPct:R.L.pct,rplh:R.L.rplh,primePct:R.M.primePct,cmPct:R.M.cmPct,op:R.P.op,opPct:R.P.opPct,bep:R.P.bep,dbep:R.P.dbep};
+  for(const k in o) if(!isFinite(o[k])) o[k]=null; return o; }
+function calcFor(state){ const keep=S; S=state; try{ syncLabels(); return calc(); } finally{ S=keep; } }
+async function saveNow(){
+  clearTimeout(saveTimer); saveTimer=null;
+  if(!db || readOnly || isSample) return;
+  if(inflight){ again=true; return inflight; }
+  const key=S.monthKey; syncLabels();
+  const body={key, period:monthLabel(key), state:clone(S), summary:summarize(calc()), updatedAt:new Date().toISOString(), by:CLIENT};
+  inflight = (async()=>{
+    try{ await db.doc('months/'+key).set(body); dirty=false; lastSavedAt=new Date(); mode='saved';
+      const i=archive.findIndex(a=>a.key===key); if(i>=0) archive[i]=body; else archive.push(body); }
+    catch(e){ const c=e&&e.code;
+      if(c==='invalid_argument'){ readOnly=true; mode='readonly'; }
+      else if(c==='quota_exceeded'){ mode='error'; toast('Baza je puna: obriši stare mesece'); }
+      else if(c==='revoked'||c==='not_granted'||c==='capability_disabled'){ db=null; mode='local'; }
+      else { mode='error'; saveTimer=setTimeout(saveNow,4000+Math.random()*2000); } }
+    setStat(); renderArchive();
+  })();
+  await inflight; inflight=null;
+  if(again){ again=false; await saveNow(); }
+}
+async function setCurrent(key){ if(db && !readOnly){ try{ await db.doc('meta/app').set({current:key}); }catch(e){} } }
+function latestBefore(key){ return [...archive].filter(a=>a.key<key && a.state).sort((a,b)=>a.key<b.key?1:-1)[0]?.state || null; }
+function newMonth(cfg, prev, key){
+  const n=EMPTY(); n.monthKey=key; n.days=daysIn(key);
+  if(cfg){ n.hpd=cfg.hpd||12; n.recipes=clone(cfg.recipes||{}); n.recipeCost=clone(cfg.recipeCost||{}); n.chv=Object.assign(n.chv, clone(cfg.chv||{}));
+    n.fixed=clone(cfg.fixed||n.fixed); n.laborFixed=cfg.laborFixed!==false; n.staff=clone(cfg.staff||n.staff);
+    n.labor=(cfg.labor||[]).map(l=>({role:l.role,cost:0,hours:0})); if(!n.labor.length) n.labor=EMPTY().labor; }
+  if(prev){ CH.forEach(c=>{ n.ch[c.id].prev = +(prev.ch&&prev.ch[c.id]&&prev.ch[c.id].rev)||0; });
+    n.inv.food.open=+(prev.inv&&prev.inv.food&&prev.inv.food.close)||0; n.inv.bev.open=+(prev.inv&&prev.inv.bev&&prev.inv.bev.close)||0; }
+  return n;
+}
+function useState(st, key){ S=Object.assign(EMPTY(), clone(st)); S.monthKey=key; isSample=false; }
+async function openMonth(key, quiet){
+  if(saveTimer || dirty) await saveNow();
+  const ex = archive.find(a=>a.key===key && a.state);
+  if(ex) useState(ex.state, key);
+  else {
+    const prevDoc = archive.find(a=>a.key===prevKey(key))?.state || (!isSample && S.monthKey===prevKey(key) ? S : null);
+    const cfg = prevDoc || latestBefore(key) || (!isSample ? S : null);
+    S = newMonth(cfg, prevDoc, key); isSample=false;
+  }
+  buildInputs(); render(); localSave();
+  if(!ex) await saveNow();
+  await setCurrent(key); setStat();
+  if(!quiet) toast(ex ? `Otvoren ${monthLabel(key)}` : `Započet ${monthLabel(key)}`);
+}
+function onMonthSelect(){ const k=$('ySel').value+'-'+pad2($('mSel').value); openMonth(k); }
+$('mSel').onchange=onMonthSelect; $('ySel').onchange=onMonthSelect;
+
+async function initDb(){
+  db = await cap('db');
+  if(!db){ mode='local'; setStat(); renderArchive(); return; }
+  try{ const u=await cap('user'); if(u){ const c=await u.can('data.write'); if(c===false){ readOnly=true; } } }catch(e){}
+  try{
+    const snap = await db.collection('months').get();
+    archive = snap.docs.map(d=>d.data()).filter(Boolean);
+    let key=null; try{ const m=await db.doc('meta/app').get(); if(m.exists) key=m.data().current; }catch(e){}
+    if(!key && archive.length) key=[...archive].sort((a,b)=>a.key<b.key?1:-1)[0].key;
+    const ex = key && archive.find(a=>a.key===key && a.state);
+    if(ex){ useState(ex.state, key); buildInputs(); render(); localSave(); }
+    else if(!isSample && !readOnly){ await saveNow(); await setCurrent(S.monthKey); }
+    mode = readOnly ? 'readonly' : 'saved';
+  }catch(e){ mode='error'; }
+  setStat(); renderArchive();
+  db.collection('months').onSnapshot(snap=>{
+    if(snap.metadata && snap.metadata.fromCache) return;
+    archive = snap.docs.map(d=>d.data()).filter(Boolean);
+    const d = archive.find(a=>a.key===S.monthKey);
+    const ae = document.activeElement;
+    if(d && d.state && d.by!==CLIENT && !isSample && !saveTimer && !dirty && !inflight && !(ae && ae.dataset && ae.dataset.path)){
+      useState(d.state, d.key); buildInputs(); render(); localSave();
+    } else renderArchive();
+  }, ()=>{ mode='error'; setStat(); });
+}
+
+/* =========================== ARCHIVE =========================== */
+function archiveList(){
+  const map = new Map(archive.filter(a=>a && a.key && a.state).map(a=>[a.key,{key:a.key,state:a.state,updatedAt:a.updatedAt}]));
+  if(!isSample) map.set(S.monthKey,{key:S.monthKey,state:S,updatedAt:map.get(S.monthKey)?.updatedAt, live:true});
+  else if(!map.size) map.set(S.monthKey,{key:S.monthKey,state:S,sample:true});
+  return [...map.values()].sort((a,b)=>a.key<b.key?-1:1).map(x=>({...x, R:calcFor(x.state)}));
+}
+function renderArchive(){
+  if(!$('archTable')) return;
+  const list = archiveList();
+  $('storeNote').innerHTML = mode==='local' ? '<span class="warnline">Server nije dostupan u ovom prikazu.</span> Podaci se čuvaju samo u ovom pregledaču.' :
+    readOnly ? 'Imaš pravo samo da gledaš. Izmene može da unosi osoba sa pravom izmene.' :
+    isSample ? 'Prikazan je primer. Sačuvani meseci su u tabeli ispod.' :
+    'Podaci se čuvaju na serveru uz ovaj alat. Vide ih svi koji imaju pristup alatu, na svakom uređaju.';
+  const mx = Math.max(1,...list.map(x=>Math.max(x.R.T.rev||0, isFinite(x.R.P.bep)?x.R.P.bep:0)));
+  $('archChart').innerHTML = list.length ? list.map(x=>{ const r=x.R;
+    return `<div class="archrow"><span><b>${monthLabel(x.key)}</b>${x.sample?' <span class="fx">primer</span>':''}</span>
+      <span class="archtrack"><i style="width:${(r.T.rev||0)/mx*100}%;background:${r.P.op>=0?'var(--pink)':'var(--neg)'}"></i>${isFinite(r.P.bep)?`<b style="left:${r.P.bep/mx*100}%" title="Break-even ${rsd(r.P.bep)}"></b>`:''}</span>
+      <span class="r">${kShort(r.T.rev)} · <span class="${r.P.op>=0?'vpos':'vneg'}">OP ${pct(r.P.opPct)}</span></span></div>`; }).join('')
+    : '<p class="note">Još nema sačuvanih meseci.</p>';
+  const rows=[...list].reverse();
+  $('archTable').innerHTML = `<thead><tr><th>Mesec</th><th>Promet</th><th>Rast</th><th>Food Cost %</th><th>Waste %</th><th>Labor %</th><th>Prime %</th><th>CM %</th><th>Op. profit</th><th>OP %</th><th>Break-even</th><th>Izmenjeno</th><th></th></tr></thead><tbody>`+
+    (rows.length? rows.map(x=>{ const r=x.R, cur=x.key===S.monthKey;
+      const upd = x.updatedAt ? new Date(x.updatedAt) : null;
+      return `<tr class="${cur?'cur':''}"><td><b>${monthLabel(x.key)}</b>${x.sample?' <span class="fx">primer</span>':''}</td><td>${rsd(r.T.rev)}</td><td>${growthPill(r.T.growth)}</td><td>${pct(r.F.actFcPct)}</td><td>${pct(r.W.pct)}</td><td>${pct(r.L.pct)}</td><td>${pct(r.M.primePct)}</td><td>${pct(r.M.cmPct)}</td><td class="${r.P.op>=0?'':'vneg'}">${rsd(r.P.op)}</td><td>${pct(r.P.opPct)}</td><td>${rsd(r.P.bep)}</td><td class="muted">${upd?`${pad2(upd.getDate())}.${pad2(upd.getMonth()+1)}. ${pad2(upd.getHours())}:${pad2(upd.getMinutes())}`:'—'}</td>
+      <td>${cur?'<span class="fx">otvoren</span>':(x.sample?'':`<button class="btn sm" type="button" data-open="${x.key}">Otvori</button>`)}</td></tr>`; }).join('')
+    : '<tr><td colspan="13" class="l muted">Još nema sačuvanih meseci. Mesec se čuva čim uneseš prvi broj.</td></tr>')+'</tbody>';
+}
+document.addEventListener('click', e=>{ const b=e.target.closest('[data-open]'); if(b){ openMonth(b.dataset.open); show('pregled'); } });
+
+$('startOwn').onclick = async()=>{
+  const key = archive.length ? [...archive].sort((a,b)=>a.key<b.key?1:-1)[0].key : curKey();
+  const ex = archive.find(a=>a.key===key && a.state);
+  if(ex) useState(ex.state, key); else { S=EMPTY(); S.monthKey=key; S.days=daysIn(key); isSample=false; }
+  buildInputs(); render(); localSave(); if(!ex) await saveNow(); await setCurrent(key); setStat(); show('unos');
+  toast(ex ? `Otvoren ${monthLabel(key)}` : `Započet ${monthLabel(key)} — unesi prodaju`);
+};
+$('loadSample').onclick=()=>{ if(saveTimer) saveNow(); S=clone(SAMPLE); isSample=true; buildInputs(); render(); localSave(); setStat(); show('pregled'); toast('Prikazan primer — tvoji meseci su sačuvani'); };
+let clearArm=null;
+$('clearMonth').onclick=()=>{
+  const b=$('clearMonth');
+  if(isSample){ toast('Primer se ne briše — otvori svoj mesec'); return; }
+  if(!clearArm){ b.textContent=`Klikni ponovo: briše ${monthLabel(S.monthKey)}`; b.classList.add('warn'); clearArm=setTimeout(()=>{clearArm=null;b.textContent='Obriši unos za ovaj mesec';b.classList.remove('warn');},4000); return; }
+  clearTimeout(clearArm); clearArm=null; b.textContent='Obriši unos za ovaj mesec'; b.classList.remove('warn');
+  const key=S.monthKey, prev=archive.find(a=>a.key===prevKey(key))?.state||null;
+  S=newMonth(S, prev, key); buildInputs(); render(); commit(); toast(`Unos za ${monthLabel(key)} je obrisan`);
+};
+
+/* =========================== EXCEL =========================== */
+const r1 = v => isFinite(v) ? Math.round(v*10)/10 : null, r0 = v => isFinite(v) ? Math.round(v) : null, r3 = v => isFinite(v) ? Math.round(v*1000)/1000 : null;
+function buildWorkbook(list){
+  const SH = {
+    'Pregled meseci': [['Mesec','Radnih dana','Sati rada/dan','Promet (RSD)','Rast %','Porudžbine','AOV (RSD)','Gosti In-House','Promet po gostu (RSD)','Artikli po porudžbini',
+      'Teorijski COGS (RSD)','Stvarni COGS (RSD)','Variance (RSD)','Food revenue (RSD)','Food Cost %','Beverage Cost %','Waste (RSD)','Waste %','Inventory Days',
+      'Labor (RSD)','Labor %','Radni sati','Promet po radnom satu (RSD)','Prime Cost (RSD)','Prime Cost %','Troškovi kanala (RSD)','Contribution (RSD)','CM %',
+      'Fiksni troškovi (RSD)','Operating Profit (RSD)','OP %','Break-even (RSD)','Dnevni break-even (RSD)','Margin of safety %','Labor u break-evenu']],
+    'Kanali': [['Mesec','Kanal','Promet (RSD)','Promet prethodni period (RSD)','Rast %','Sales Mix %','Porudžbine / računi','Order Mix %','AOV (RSD)','Prodati artikli','Artikli po porudžbini',
+      'Gosti','Provizija %','Ambalaža RSD/porudžbina','Dostava RSD/porudžbina','Kartice %','Food cost kanala (RSD)','Provizija (RSD)','Ambalaža (RSD)','Dostava (RSD)','Kartice (RSD)','Contribution (RSD)','CM %','CM po porudžbini (RSD)']],
+    'Po satu': [['Mesec','Sat','Promet u satu (RSD)','Prosek po danu (RSD)','Udeo u prometu %','Ljudi u smeni','Promet po radnom satu (RSD)']],
+    'Artikli': [['Mesec','Kategorija','Grupa','Artikal','Jedinica','Cena (RSD)','Prodata količina','Promet artikla (RSD)','Item Sales Mix %','Qty Mix %','Recipe cost (RSD)','Food Cost %','Marža po porciji (RSD)','Teorijski COGS (RSD)','Receptura']],
+    'Recepture': [['Mesec','Jelo','Sastojak','Količina','Jedinica','Cena po jedinici (RSD)','Trošak sastojka (RSD)']],
+    'Lager': [['Mesec','Grupa','Početni lager (RSD)','Nabavka (RSD)','Završni lager (RSD)','Stvarni COGS (RSD)','Prosečan lager (RSD)','Inventory Days']],
+    'Otpis': [['Mesec','Šta je bačeno','Razlog','Razlog (EN)','Količina','Cena po jedinici (RSD)','Vrednost (RSD)']],
+    'Labor': [['Mesec','Tim','Trošak (RSD)','Radni sati','% prometa','RSD po satu','Udeo u laboru %']],
+    'Fiksni troškovi': [['Mesec','Trošak','Mesečno (RSD)','% prometa']],
+  };
+  list.forEach(x=>{ const st=x.state, r=x.R, T=r.T, F=r.F, W=r.W, L=r.L, M=r.M, P=r.P, Mo=monthLabel(x.key);
+    SH['Pregled meseci'].push([Mo,+st.days||0,+st.hpd||0,r0(T.rev),r1(T.growth),r0(T.orders),r0(T.aov),r0(T.guests),r0(T.rpg),r1(T.ipo),
+      r0(F.theo),r0(F.act),r0(F.var),r0(F.foodRev),r1(F.actFcPct),r1(F.actBcPct),r0(W.total),r1(W.pct),r1(W.days),
+      r0(L.cost),r1(L.pct),r0(L.hours),r0(L.rplh),r0(M.prime),r1(M.primePct),r0(M.chanCost),r0(M.cm),r1(M.cmPct),
+      r0(P.fixedOpex),r0(P.op),r1(P.opPct),r0(P.bep),r0(P.dbep),r1(P.safety),st.laborFixed!==false?'fiksni':'varijabilni']);
+    M.ch.forEach(c=>{ const v=(st.chv||{})[c.id]||{};
+      SH['Kanali'].push([Mo,c.name,r0(c.rev),r0(c.prev),r1(c.growth),r1(c.salesMix),r0(c.orders),r1(c.orderMix),r0(c.aov),r0(c.items),r1(c.ipo),
+        c.id==='inhouse'?r0(c.guests):null,+v.comm||0,+v.pack||0,+v.deliv||0,+v.fee||0,r0(c.food),r0(c.comm),r0(c.pack),r0(c.deliv),r0(c.fee),r0(c.cm),r1(c.cmPct),r0(c.cmOrder)]); });
+    r.hr.forEach((v,i)=>SH['Po satu'].push([Mo,`${HOURS[i]}–${+HOURS[i]+1}h`,r0(v),r0(div(v,r.days)),r1(div(v,T.rev)*100),+L.staff[i]||0,r0(L.slot[i])]));
+    r.it.forEach(i=>{ if(!(i.q>0||i.rc>0)) return;
+      SH['Artikli'].push([Mo,CATNAME[i.cat],i.grp,i.name,i.unit,i.price,r3(i.q),r0(i.rev),r1(i.mix),r1(i.qmix),r0(i.rc),r1(i.fc),i.rc?r0(i.price-i.rc):null,r0(i.theo),i.hasRecipe?'da':'ne']); });
+    Object.entries(st.recipes||{}).forEach(([id,lines])=>{ const it=ITEMS.find(z=>z.id===id); (lines||[]).forEach(l=>
+      SH['Recepture'].push([Mo,it?it.name:id,l.n||'',r3(+l.q||0),l.u||'',r0(+l.p||0),r0((+l.q||0)*(+l.p||0))])); });
+    [['food','Hrana',F.actFood,W.avgFood,W.daysFood],['bev','Piće',F.actBev,W.avgBev,W.daysBev]].forEach(([k,n,c,avg,d])=>{ const v=(st.inv||{})[k]||{};
+      SH['Lager'].push([Mo,n,r0(+v.open||0),r0(+v.buy||0),r0(+v.close||0),r0(c),r0(avg),r1(d)]); });
+    W.rows.forEach(w=>SH['Otpis'].push([Mo,w.what||'',WASTE_SR[w.reason]||w.reason,w.reason,r3(+w.qty||0),r0(+w.cost||0),r0(w.val)]));
+    L.rows.forEach(l=>SH['Labor'].push([Mo,l.role||'',r0(l.cost),r0(l.hours),r1(l.pct),r0(l.cph),r1(l.share)]));
+    (st.fixed||[]).forEach(f=>SH['Fiksni troškovi'].push([Mo,f.n||'',r0(+f.v||0),r1(div(+f.v||0,T.rev)*100)]));
+  });
+  const wb=XLSX.utils.book_new();
+  Object.entries(SH).forEach(([name,rows])=>{
+    const ws=XLSX.utils.aoa_to_sheet(rows);
+    const hdr=rows[0];
+    ws['!cols']=hdr.map(h=>({wch:Math.min(34,Math.max(11,String(h).length+2))}));
+    ws['!autofilter']={ref:XLSX.utils.encode_range({s:{r:0,c:0},e:{r:Math.max(0,rows.length-1),c:hdr.length-1}})};
+    const range=XLSX.utils.decode_range(ws['!ref']);
+    for(let c=range.s.c;c<=range.e.c;c++){ const h=String(hdr[c]); const fmt = /%|Days|po porudžbini$|Artikli po/.test(h) ? '0.0' : /RSD/.test(h) ? '#,##0' : null;
+      if(!fmt) continue; for(let rr=1;rr<=range.e.r;rr++){ const cell=ws[XLSX.utils.encode_cell({r:rr,c})]; if(cell&&cell.t==='n') cell.z=fmt; } }
+    XLSX.utils.book_append_sheet(wb,ws,name);
+  });
+  return wb;
+}
+$('dlXlsx').onclick = async()=>{
+  if(typeof XLSX==='undefined'){ toast('Excel modul se nije učitao — osveži stranicu'); return; }
+  const dl = await cap('downloads');
+  if(!dl){ toast('Preuzimanje nije dostupno u ovom prikazu'); return; }
+  if(saveTimer || dirty) await saveNow();
+  const wb = buildWorkbook(archiveList());
+  const buf = XLSX.write(wb,{bookType:'xlsx',type:'array'});
+  const d=new Date(), stamp=`${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+  try{ await dl.save({filename:`In-Smoke-We-Trust-finansije-${stamp}.xlsx`, data:buf}); toast('Excel je preuzet'); }
+  catch(e){ if(e&&e.code==='declined') return; toast(e&&e.code==='rate_limited'?'Sačekaj trenutak pa pokušaj ponovo':'Preuzimanje nije uspelo'); }
+};
+
+load(); buildInputs(); render();
+const h=(location.hash||'').slice(1); show(VIEWS.includes(h)?h:'pregled');
+setStat(); initDb();
+</script>
+
+</body>
+</html>
